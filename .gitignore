@@ -1,0 +1,9 @@
+node_modules/
+.env
+db/ad-cache.sqlite
+db/ad-cache.sqlite-shm
+db/ad-cache.sqlite-wal
+*.log
+uploads/
+server_err.txt
+server_out.txt

@@ -96,13 +96,24 @@ function Invoke-Deployment {
   $deployId = $Task.id
   Send-Progress -DeploymentId $deployId -Pct 5 -Status "in_progress"
   $tempDir = "$env:TEMP\ADManagerDeploy"
+  try {
+    $tempDrive = (Get-Item $tempDir -ErrorAction SilentlyContinue).PSDrive.Name
+    if ($tempDrive -eq 'C') {
+      $c = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'" -ErrorAction SilentlyContinue
+      if ($c -and ($c.FreeSpace / 1MB) -lt 100) {
+        if (Test-Path 'E:\') { $tempDir = 'E:\ADManagerDeploy' }
+      }
+    }
+  } catch {}
   if (-not (Test-Path $tempDir)) { New-Item -ItemType Directory -Path $tempDir -Force | Out-Null }
   $filePath = "$tempDir\$($Task.original_name)"
   $downloadUrl = "$ServerUrl/api/endpoints/deployments/download/$($Task.stored_path)"
   Write-Log "Downloading $downloadUrl"
   Send-Progress -DeploymentId $deployId -Pct 15 -Status "in_progress"
   try {
-    Invoke-WebRequest -Uri $downloadUrl -OutFile $filePath -TimeoutSec 300 -UseBasicParsing
+    # Use WebClient for reliable non-interactive download with a 5-minute timeout
+    $wc = New-Object System.Net.WebClient
+    $wc.DownloadFile($downloadUrl, $filePath)
     Write-Log "Downloaded to $filePath ($([math]::Round((Get-Item $filePath).Length / 1MB, 1)) MB)"
   } catch { return @{ status = "failed"; error = "Download failed: $_" } }
   Send-Progress -DeploymentId $deployId -Pct 50

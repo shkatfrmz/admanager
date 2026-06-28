@@ -24,10 +24,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limiting — protect against brute force
+// Rate limiting — protect against brute force (skip agent-facing endpoints)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100
+  max: 100,
+  skip: (req) => {
+    // Agent endpoints poll frequently; don't rate-limit them
+    const agentPaths = ['/api/endpoints/register', '/api/endpoints/heartbeat', '/api/endpoints/deployments'];
+    return agentPaths.some(p => req.path.startsWith(p));
+  }
 });
 app.use('/api/', limiter);
 

@@ -7,3 +7,6 @@ db/ad-cache.sqlite-wal
 uploads/
 server_err.txt
 server_out.txt
+db-backup/
+*-backup/
+*.zip

@@ -5,7 +5,7 @@
 #>
 
 param(
-  [string]$ServerUrl = "http://172.18.228.89:3000",
+  [string]$ServerUrl = "http://localhost:3000",
   [switch]$Silent = $false,
   [switch]$Uninstall = $false
 )
@@ -51,30 +51,16 @@ if ($Uninstall) {
 # ═══════════════════════════════════════════════════════════════════════════
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
-  Write-Status "Not running as admin. Elevating silently via SYSTEM scheduled task..." -Color Yellow
-  # Write the install script to a temp location
-  $tmpScript = "$env:TEMP\admanager-install.ps1"
-  $installArgs = "-NoProfile -File `"$PSCommandPath`" -ServerUrl `"$ServerUrl`" -Silent"
-  # Create a temporary scheduled task running as SYSTEM (no UAC prompt ever)
-  $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $installArgs
-  $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(5) -RepetitionDuration ([TimeSpan]::FromMinutes(5))
-  $settings = New-ScheduledTaskSettingsSet -Hidden -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-  $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+  Write-Status "Not running as Administrator. A UAC prompt is required to install the SYSTEM-level agent." -Color Yellow
+  Write-Status "Relaunching installer with elevated privileges..." -Color Yellow
   try {
-    Register-ScheduledTask -TaskName "ADManagerAgentSetup" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force -ErrorAction Stop | Out-Null
-    Start-ScheduledTask -TaskName "ADManagerAgentSetup" -ErrorAction SilentlyContinue
-    Write-Status "Elevation task started. Waiting up to 60 seconds for completion..." -Color Yellow
-    $done = $false
-    for ($i = 0; $i -lt 60; $i++) {
-      Start-Sleep -Seconds 1
-      $task = Get-ScheduledTask -TaskName "ADManagerAgentSetup" -ErrorAction SilentlyContinue
-      if (-not $task -or $task.State -eq 'Ready') { $done = $true; break }
-    }
-    try { Unregister-ScheduledTask -TaskName "ADManagerAgentSetup" -Confirm:$false -ErrorAction SilentlyContinue } catch {}
-    if (-not $done) { Write-Status "Warning: Timed out waiting for elevation task." -Color Yellow }
+    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -ServerUrl `"$ServerUrl`""
+    if ($Silent) { $arguments += " -Silent" }
+    Start-Process -FilePath "powershell.exe" -ArgumentList $arguments -Verb runAs -Wait
   } catch {
-    Write-Status "ERROR: Could not create SYSTEM scheduled task for elevation." -Color Red
-    Write-Status "Run this installer as Administrator once, or use remote-install.ps1 for remote machines." -Color Red
+    Write-Status "ERROR: Could not elevate installer. $_" -Color Red
+    Write-Status "Please right-click PowerShell and choose 'Run as administrator', then run:" -Color Red
+    Write-Status "  .\install-product.ps1 -ServerUrl `"$ServerUrl`"" -Color Red
     exit 1
   }
   exit

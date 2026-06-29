@@ -3,7 +3,7 @@ param(
   [int]$HeartbeatIntervalSec = 300
 )
 
-$AgentVersion = "1.0.0"
+$AgentVersion = "1.1.0"
 $EndpointId = $null
 $LogFile = "$env:ProgramData\ADManagerAgent\agent.log"
 $StateFile = "$env:ProgramData\ADManagerAgent\endpoint_id.txt"
@@ -91,10 +91,26 @@ function Send-Progress {
   } catch { }
 }
 
+function Test-IsSystem {
+  return ($env:USERNAME -eq "$env:COMPUTERNAME`$") -or (([Security.Principal.WindowsIdentity]::GetCurrent()).User.Value -eq "S-1-5-18")
+}
+
+function Test-IsAdmin {
+  return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
 function Invoke-Deployment {
   param($Task)
   $deployId = $Task.id
   Send-Progress -DeploymentId $deployId -Pct 5 -Status "in_progress"
+
+  # If we are not running as SYSTEM/Admin, re-elevate the entire install via a one-time scheduled task
+  # so that MSI/EXE installs run silently without UAC prompts.
+  if (-not (Test-IsSystem) -and -not (Test-IsAdmin)) {
+    Write-Log "Agent not running elevated. Scheduling SYSTEM-level install for deployment $deployId"
+    return Invoke-DeploymentAsSystem -Task $Task
+  }
+
   $tempDir = "$env:TEMP\ADManagerDeploy"
   try {
     $tempDrive = (Get-Item $tempDir -ErrorAction SilentlyContinue).PSDrive.Name
@@ -124,7 +140,7 @@ function Invoke-Deployment {
       ".msi"  {
         Write-Log "Installing MSI quietly..."
         Send-Progress -DeploymentId $deployId -Pct 60 -Status "in_progress"
-        $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$filePath`" /quiet /norestart" -NoNewWindow -Wait -PassThru
+        $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$filePath`" /quiet /norestart ALLUSERS=1" -NoNewWindow -Wait -PassThru
         Send-Progress -DeploymentId $deployId -Pct 90
         if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 1641 -or $proc.ExitCode -eq 3010) {
           return @{ status = "success" }
@@ -139,18 +155,19 @@ function Invoke-Deployment {
         $silentArgs = @(
           @("/S"),
           @("/S", "/D=C:\Program Files\ADManagerDeploy"),
-          @("/VERYSILENT", "/NORESTART"),
-          @("/SILENT", "/NORESTART"),
+          @("/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES", "/SP-"),
+          @("/SILENT", "/NORESTART", "/SUPPRESSMSGBOXES", "/SP-"),
           @("/quiet", "/norestart"),
           @("/qn", "/norestart"),
-          @("-y")
+          @("-y"),
+          @("/verysilent /norestart /suppressmsgboxes")
         )
         $installed = $false
         foreach ($args in $silentArgs) {
           $argString = $args -join ' '
           Write-Log "Trying silent install: $argString"
-          $proc = Start-Process -FilePath $filePath -ArgumentList $argString -Wait -PassThru -WindowStyle Hidden
-          if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 1641 -or $proc.ExitCode -eq 3010) {
+          $proc = Start-Process -FilePath $filePath -ArgumentList $argString -Wait -PassThru -WindowStyle Hidden -ErrorAction SilentlyContinue
+          if ($proc -and ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 1641 -or $proc.ExitCode -eq 3010)) {
             Write-Log "Success with exit code $($proc.ExitCode) using $argString"
             $installed = $true
             break
@@ -161,17 +178,17 @@ function Invoke-Deployment {
         if ($installed) { return @{ status = "success" } }
 
         Write-Log "No silent switch succeeded - running with no flags"
-        $proc = Start-Process -FilePath $filePath -Wait -PassThru -WindowStyle Hidden
-        if ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 1641 -or $proc.ExitCode -eq 3010) { return @{ status = "success" } }
+        $proc = Start-Process -FilePath $filePath -Wait -PassThru -WindowStyle Hidden -ErrorAction SilentlyContinue
+        if ($proc -and ($proc.ExitCode -eq 0 -or $proc.ExitCode -eq 1641 -or $proc.ExitCode -eq 3010)) { return @{ status = "success" } }
         else { return @{ status = "failed"; error = "EXE exit code: $($proc.ExitCode)" } }
       }
       ".ps1" {
         Write-Log "Executing PowerShell script..."
         Send-Progress -DeploymentId $deployId -Pct 60 -Status "in_progress"
-        $output = powershell -ExecutionPolicy Bypass -File $filePath 2>&1
+        $proc = Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$filePath`"" -Wait -PassThru -WindowStyle Hidden -NoNewWindow
         Send-Progress -DeploymentId $deployId -Pct 90
-        if ($LASTEXITCODE -eq 0 -or -not $LASTEXITCODE) { return @{ status = "success" } }
-        else { return @{ status = "failed"; error = "PowerShell exit code: $LASTEXITCODE" } }
+        if ($proc.ExitCode -eq 0 -or -not $proc.ExitCode) { return @{ status = "success" } }
+        else { return @{ status = "failed"; error = "PowerShell exit code: $($proc.ExitCode)" } }
       }
       { $_ -eq ".bat" -or $_ -eq ".cmd" } {
         Write-Log "Executing batch file..."
@@ -190,6 +207,76 @@ function Invoke-Deployment {
       }
     }
   } catch { return @{ status = "failed"; error = "Execution error: $_" } }
+}
+
+function Invoke-DeploymentAsSystem {
+  param($Task)
+  $deployId = $Task.id
+  $resultFile = "$env:ProgramData\ADManagerAgent\deploy-result-$deployId.json"
+  $wrapper = @"
+`$ServerUrl = '$ServerUrl'
+`$TaskJson = @'
+$($Task | ConvertTo-Json -Depth 3)
+'@
+`$Task = `$TaskJson | ConvertFrom-Json
+`$AgentPath = '$PSScriptRoot\ad-manager-agent.ps1'
+if (Test-Path `$AgentPath) {
+  . `$AgentPath -ServerUrl `$ServerUrl
+  `$result = Invoke-Deployment -Task `$Task
+} else {
+  `$result = @{ status = 'failed'; error = 'Agent script not found at expected path' }
+}
+`$result | ConvertTo-Json -Depth 3 | Out-File -FilePath '$resultFile' -Encoding utf8 -Force
+"@
+  $tmpScript = "$env:ProgramData\ADManagerAgent\deploy-elevated-$deployId.ps1"
+  $wrapper | Out-File -FilePath $tmpScript -Encoding utf8 -Force
+
+  $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$tmpScript`""
+  $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddSeconds(2)
+  $settings = New-ScheduledTaskSettingsSet -Hidden -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+  $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+  $taskName = "ADManagerDeploy_$deployId"
+  try {
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
+    Start-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    Write-Log "Elevated deployment task $taskName started; waiting up to 10 minutes..."
+
+    $maxWait = 600 # 10 minutes
+    $elapsed = 0
+    while ($elapsed -lt $maxWait) {
+      Start-Sleep -Seconds 10
+      $elapsed += 10
+      if (Test-Path $resultFile) {
+        try {
+          $result = Get-Content $resultFile -Raw | ConvertFrom-Json
+          Remove-Item $resultFile -Force -ErrorAction SilentlyContinue
+          Remove-Item $tmpScript -Force -ErrorAction SilentlyContinue
+          try { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue } catch {}
+          Write-Log "Elevated deployment result: $($result.status)"
+          return @{ status = $result.status; error = $result.error }
+        } catch {
+          Write-Log "Could not read result file yet: $_"
+        }
+      }
+      $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+      if (-not $task -or $task.State -eq 'Ready') { break }
+    }
+    try { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue } catch {}
+    if (Test-Path $resultFile) {
+      try {
+        $result = Get-Content $resultFile -Raw | ConvertFrom-Json
+        Remove-Item $resultFile -Force -ErrorAction SilentlyContinue
+        Remove-Item $tmpScript -Force -ErrorAction SilentlyContinue
+        return @{ status = $result.status; error = $result.error }
+      } catch {}
+    }
+    Remove-Item $tmpScript -Force -ErrorAction SilentlyContinue
+    return @{ status = "failed"; error = "Elevated deployment timed out or did not report a result after ${elapsed}s" }
+  } catch {
+    Remove-Item $tmpScript -Force -ErrorAction SilentlyContinue
+    return @{ status = "failed"; error = "Failed to schedule SYSTEM deployment: $_" }
+  }
 }
 
 # Main Loop

@@ -2419,9 +2419,10 @@ async function loadRBACManager() {
         </div>
         <h4>Assign Roles to Users</h4>
         <div style="display:flex;gap:12px;margin-bottom:12px;align-items:flex-end">
-          <div style="flex:2;min-width:250px">
+          <div style="flex:2;min-width:250px;position:relative" id="rbac-username-wrap">
             <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Username (UPN)</label>
-            <input type="text" id="rbac-assign-username" placeholder="user@domain.com" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" />
+            <input type="text" id="rbac-assign-username" placeholder="user@domain.com" autocomplete="off" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" />
+            <div id="rbac-user-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px;z-index:1000"></div>
           </div>
           <div style="flex:1;min-width:150px">
             <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Role</label>
@@ -2444,9 +2445,89 @@ async function loadRBACManager() {
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    setupRBACUserAutocomplete();
   } catch (e) {
     showToast('Failed to load RBAC manager: ' + e.message, 'error');
   }
+}
+
+function setupRBACUserAutocomplete() {
+  const input = document.getElementById('rbac-assign-username');
+  const suggestions = document.getElementById('rbac-user-suggestions');
+  if (!input || !suggestions) return;
+
+  let allUsers = [];
+  // Load users once when focused
+  input.addEventListener('focus', async () => {
+    if (allUsers.length === 0) {
+      try {
+        const data = await api('/api/users?limit=5000');
+        allUsers = (data?.users || []).map(u => u.userPrincipalName || u.sAMAccountName || u.dn).filter(Boolean);
+      } catch (_) {}
+    }
+  });
+
+  input.addEventListener('input', () => {
+    const val = input.value.trim().toLowerCase();
+    if (!val || allUsers.length === 0) {
+      suggestions.style.display = 'none';
+      return;
+    }
+    const matches = allUsers.filter(u => u.toLowerCase().includes(val)).slice(0, 10);
+    if (matches.length === 0) {
+      suggestions.style.display = 'none';
+      return;
+    }
+    suggestions.innerHTML = matches.map(u => `<div style="padding:8px 10px;font-size:13px;cursor:pointer;hover:bg:var(--primary-dim)" 
+      onmouseover="this.style.background='var(--primary-dim)'" 
+      onmouseout="this.style.background=''" 
+      onclick="selectRBACUser('${u.replace(/'/g,"\\'")}')">${highlightMatch(u, val)}</div>`).join('');
+    suggestions.style.display = 'block';
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const items = suggestions.querySelectorAll('div');
+    let active = Array.from(items).findIndex(el => el.style.background === 'var(--primary-dim)');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      active = Math.min(active + 1, items.length - 1);
+      if (active >= 0) highlightItem(items, active);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      active = Math.max(active - 1, 0);
+      if (active >= 0) highlightItem(items, active);
+    } else if (e.key === 'Enter') {
+      if (active >= 0 && items[active]) {
+        e.preventDefault();
+        items[active].click();
+      }
+    } else if (e.key === 'Escape') {
+      suggestions.style.display = 'none';
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('rbac-username-wrap').contains(e.target)) {
+      suggestions.style.display = 'none';
+    }
+  });
+}
+
+function highlightItem(items, index) {
+  items.forEach((el, i) => el.style.background = i === index ? 'var(--primary-dim)' : '');
+}
+
+function highlightMatch(text, query) {
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return text.slice(0, idx) + '<strong style="color:var(--primary)">' + text.slice(idx, idx + query.length) + '</strong>' + text.slice(idx + query.length);
+}
+
+function selectRBACUser(username) {
+  const input = document.getElementById('rbac-assign-username');
+  const suggestions = document.getElementById('rbac-user-suggestions');
+  if (input) input.value = username;
+  if (suggestions) suggestions.style.display = 'none';
 }
 
 async function createRole() {

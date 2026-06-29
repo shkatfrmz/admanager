@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const graphService = require('../services/graph.service');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
 // ── GET all available licenses in tenant ─────────────────────────────────────
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('settings:manage'), async (req, res) => {
   try {
     const licenses = await graphService.getAvailableLicenses();
     res.json({ success: true, licenses });
@@ -16,7 +17,7 @@ router.get('/', async (req, res) => {
 });
 
 // ── GET licenses for a specific user ─────────────────────────────────────────
-router.get('/users/:upn', async (req, res) => {
+router.get('/users/:upn', requirePermission('settings:manage'), async (req, res) => {
   try {
     const licenses = await graphService.getUserLicenses(req.params.upn);
     res.json({ success: true, licenses });
@@ -26,7 +27,7 @@ router.get('/users/:upn', async (req, res) => {
 });
 
 // ── POST assign license to user ───────────────────────────────────────────────
-router.post('/users/:upn/assign', async (req, res) => {
+router.post('/users/:upn/assign', requirePermission('settings:manage'), async (req, res) => {
   try {
     const { skuId } = req.body;
     if (!skuId) return res.status(400).json({ error: 'skuId is required' });
@@ -38,7 +39,7 @@ router.post('/users/:upn/assign', async (req, res) => {
 });
 
 // ── DELETE remove license from user ──────────────────────────────────────────
-router.delete('/users/:upn/:skuId', async (req, res) => {
+router.delete('/users/:upn/:skuId', requirePermission('settings:manage'), async (req, res) => {
   try {
     const result = await graphService.removeLicense(req.params.upn, req.params.skuId);
     res.json({ success: true, result });

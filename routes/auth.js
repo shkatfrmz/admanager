@@ -3,7 +3,8 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const adService = require('../services/ad.service');
 const audit = require('../services/audit.service');
-const authMiddleware = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
+const rbac = require('../services/rbac.service');
 
 /**
  * POST /api/auth/login
@@ -29,11 +30,24 @@ router.post('/login', async (req, res) => {
 
     audit.log('login_success', 'user', username, null, username, 'Successful login', 'success');
 
+    let roles = rbac.getUserRoles(username);
+    // Migration safety: auto-assign admin role on first login if no roles exist
+    if (roles.length === 0) {
+      const adminRole = rbac.getRoleByName('admin');
+      if (adminRole) {
+        rbac.assignRole(username, adminRole.id, 'system');
+        roles = rbac.getUserRoles(username);
+      }
+    }
+    const permissions = rbac.getUserPermissions(username);
+
     const token = jwt.sign(
       {
         username,
         displayName: user?.displayName,
-        email: user?.mail
+        email: user?.mail,
+        permissions,
+        roles: roles.map(r => ({ id: r.id, name: r.name, description: r.description }))
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
@@ -45,7 +59,9 @@ router.post('/login', async (req, res) => {
       user: {
         username,
         displayName: user?.displayName,
-        email: user?.mail
+        email: user?.mail,
+        permissions,
+        roles: roles.map(r => ({ id: r.id, name: r.name, description: r.description }))
       }
     });
 
@@ -59,6 +75,11 @@ router.post('/login', async (req, res) => {
 // ── GET /api/auth/me — validate token and return current user ─────────────
 router.get('/me', authMiddleware, (req, res) => {
   res.json({ success: true, user: req.user });
+});
+
+// ── GET /api/auth/permissions — list available permissions (for role editor) ─
+router.get('/permissions', authMiddleware, (req, res) => {
+  res.json({ success: true, permissions: rbac.ALL_PERMISSIONS });
 });
 
 module.exports = router;

@@ -2,8 +2,10 @@ const express = require('express');
 const router = express.Router();
 const audit = require('../services/audit.service');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 router.use(authMiddleware);
+router.use(requirePermission('audit:read'));
 
 router.get('/', (req, res) => {
   try {

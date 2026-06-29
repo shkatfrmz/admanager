@@ -3,11 +3,12 @@ const router = express.Router();
 const cache = require('../db/cache.repository');
 const syncService = require('../services/sync.service');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
 // ── GET sync status / history ─────────────────────────────────────────────────
-router.get('/status', (req, res) => {
+router.get('/status', requirePermission('sync:trigger'), (req, res) => {
   try {
     const lastSync = cache.getLastSync();
     const history = cache.getSyncHistory(10);
@@ -18,7 +19,7 @@ router.get('/status', (req, res) => {
 });
 
 // ── POST trigger a full sync (users + groups) right now ──────────────────────
-router.post('/run', async (req, res) => {
+router.post('/run', requirePermission('sync:trigger'), async (req, res) => {
   try {
     const result = await syncService.runFullSync();
     if (result?.skipped) {

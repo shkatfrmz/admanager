@@ -111,6 +111,28 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
   CREATE INDEX IF NOT EXISTS idx_audit_target_type ON audit_log(target_type);
 
+  -- RBAC Tables
+  CREATE TABLE IF NOT EXISTS roles (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT NOT NULL UNIQUE,
+    description   TEXT,
+    permissions   TEXT NOT NULL DEFAULT '[]',
+    is_system     INTEGER DEFAULT 0,
+    created_at    TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS admin_roles (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    username      TEXT NOT NULL,
+    role_id       INTEGER NOT NULL REFERENCES roles(id),
+    granted_by    TEXT,
+    created_at    TEXT DEFAULT (datetime('now')),
+    UNIQUE(username, role_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_admin_roles_username ON admin_roles(username);
+  CREATE INDEX IF NOT EXISTS idx_roles_name ON roles(name);
+
   -- Endpoint Management Tables
   CREATE TABLE IF NOT EXISTS endpoints (
     id                  TEXT PRIMARY KEY,

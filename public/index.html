@@ -783,39 +783,39 @@
 
   <!-- Primary Navigation -->
   <nav class="primary-tabs">
-    <div class="nav-item active" onclick="navigate('dashboard')">
+    <div class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       Home
     </div>
-    <div class="nav-item" onclick="navigate('users')">
+    <div class="nav-item" id="nav-users" onclick="navigate('users')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
       Management
     </div>
-    <div class="nav-item" onclick="navigate('reports')">
+    <div class="nav-item" id="nav-reports" onclick="navigate('reports')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       Reports
     </div>
-    <div class="nav-item" onclick="navigate('groups')">
+    <div class="nav-item" id="nav-groups" onclick="navigate('groups')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
       Groups
     </div>
-    <div class="nav-item" onclick="navigate('scheduled')">
+    <div class="nav-item" id="nav-scheduled" onclick="navigate('scheduled')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       Scheduled Access
     </div>
-    <div class="nav-item" onclick="navigate('audit')">
+    <div class="nav-item" id="nav-audit" onclick="navigate('audit')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
       Audit
     </div>
-    <div class="nav-item" onclick="navigate('computers')">
+    <div class="nav-item" id="nav-computers" onclick="navigate('computers')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
       Computers
     </div>
-    <div class="nav-item" onclick="navigate('contacts')">
+    <div class="nav-item" id="nav-contacts" onclick="navigate('contacts')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Contacts
     </div>
-    <div class="nav-item" onclick="navigate('endpoints')">
+    <div class="nav-item" id="nav-endpoints" onclick="navigate('endpoints')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
       Endpoints
     </div>
@@ -901,27 +901,27 @@
             Quick Actions
           </h3>
           <div class="quick-action-grid">
-            <button class="quick-action-btn" onclick="navigate('users');openCreateUser()">
+            <button class="quick-action-btn" id="qa-create-user" onclick="navigate('users');openCreateUser()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
               Create User
             </button>
-            <button class="quick-action-btn" onclick="navigate('groups')">
+            <button class="quick-action-btn" id="qa-manage-groups" onclick="navigate('groups')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
               Manage Groups
             </button>
-            <button class="quick-action-btn" onclick="navigate('scheduled')">
+            <button class="quick-action-btn" id="qa-schedule-access" onclick="navigate('scheduled')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               Schedule Access
             </button>
-            <button class="quick-action-btn" onclick="navigate('reports')">
+            <button class="quick-action-btn" id="qa-run-reports" onclick="navigate('reports')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               Run Reports
             </button>
-            <button class="quick-action-btn" onclick="navigate('endpoints')">
+            <button class="quick-action-btn" id="qa-deploy" onclick="navigate('endpoints')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
               Deploy Software
             </button>
-            <button class="quick-action-btn" onclick="navigate('audit')">
+            <button class="quick-action-btn" id="qa-audit" onclick="navigate('audit')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               View Audit Log
             </button>
@@ -944,27 +944,27 @@
             Tools
           </h3>
           <div class="quick-action-grid">
-            <button class="quick-action-btn" onclick="openSSPR()">
+            <button class="quick-action-btn" id="tool-sspr" onclick="openSSPR()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               Password Reset
             </button>
-            <button class="quick-action-btn" onclick="openRecycleBin()">
+            <button class="quick-action-btn" id="tool-recycle" onclick="openRecycleBin()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               Recycle Bin
             </button>
-            <button class="quick-action-btn" onclick="openAttrEditor()">
+            <button class="quick-action-btn" id="tool-attr" onclick="openAttrEditor()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               Attribute Editor
             </button>
-            <button class="quick-action-btn" onclick="openRBAC()">
+            <button class="quick-action-btn" id="tool-rbac" onclick="openRBAC()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s-8-4-8-10V5l8-3 8 3v7c0 6-8 10-8 10z"/></svg>
               Roles
             </button>
-            <button class="quick-action-btn" onclick="openPhotoUpload()">
+            <button class="quick-action-btn" id="tool-photo" onclick="openPhotoUpload()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               Upload Photo
             </button>
-            <button class="quick-action-btn" onclick="openLdapFilterBuilder()">
+            <button class="quick-action-btn" id="tool-ldap" onclick="openLdapFilterBuilder()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               LDAP Filter
             </button>
@@ -1002,9 +1002,9 @@
           <div class="page-sub">On-Prem Active Directory users</div>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" onclick="openCreateUser()">+ New User</button>
-          <button class="btn btn-ghost btn-sm" onclick="openCreateGMSA()">+ New GMSA</button>
-          <button class="btn btn-ghost btn-sm" onclick="openBulkImportModal()">Import CSV</button>
+          <button class="btn btn-primary" id="btn-new-user" onclick="openCreateUser()">+ New User</button>
+          <button class="btn btn-ghost btn-sm" id="btn-new-gmsa" onclick="openCreateGMSA()">+ New GMSA</button>
+          <button class="btn btn-ghost btn-sm" id="btn-import-csv" onclick="openBulkImportModal()">Import CSV</button>
           <button class="btn btn-ghost btn-sm" onclick="exportUsers()">Export CSV</button>
           <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
           <button class="btn btn-ghost btn-sm" onclick="openLdapFilterBuilder()">🔍 LDAP Filter</button>
@@ -1581,6 +1581,8 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
 let token = localStorage.getItem('adm_token') || null;
 let currentUser = JSON.parse(localStorage.getItem('adm_user') || 'null');
+let userPermissions = currentUser?.permissions || [];
+let userRoles = currentUser?.roles || [];
 let allUsers = [];
 let allGroups = [];
 let totalUsersCount = 0;
@@ -1611,8 +1613,22 @@ async function validateToken() {
     const res = await fetch(`${API}/api/auth/me`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    return res.ok;
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (data.user) {
+      currentUser = data.user;
+      userPermissions = currentUser.permissions || [];
+      userRoles = currentUser.roles || [];
+      localStorage.setItem('adm_user', JSON.stringify(currentUser));
+    }
+    return true;
   } catch { return false; }
+}
+
+function hasPermission(permission) {
+  // Empty permissions = admin fallback (migration safety)
+  if (!userPermissions || userPermissions.length === 0) return true;
+  return userPermissions.includes(permission);
 }
 
 // ── AUTH ───────────────────────────────────────────────────────────────────
@@ -1639,6 +1655,8 @@ async function doLogin() {
 
     token = data.token;
     currentUser = data.user;
+    userPermissions = currentUser.permissions || [];
+    userRoles = currentUser.roles || [];
     localStorage.setItem('adm_token', token);
     localStorage.setItem('adm_user', JSON.stringify(currentUser));
     showApp();
@@ -1656,7 +1674,7 @@ document.addEventListener('keydown', e => {
 });
 
 function doLogout() {
-  token = null; currentUser = null;
+  token = null; currentUser = null; userPermissions = []; userRoles = [];
   localStorage.removeItem('adm_token');
   localStorage.removeItem('adm_user');
   document.getElementById('app').style.display = 'none';
@@ -1682,6 +1700,73 @@ function showApp() {
     document.getElementById('topbar-name').textContent = name;
     document.getElementById('topbar-avatar').textContent = (name || '?')[0].toUpperCase();
     document.getElementById('welcome-name').textContent = name;
+  }
+  applyPermissionUI();
+  // Hide/show user page buttons based on permissions
+  showIfPermission('btn-new-user', 'users:create');
+  showIfPermission('btn-new-gmsa', 'users:create');
+  showIfPermission('btn-import-csv', 'users:bulk');
+}
+
+function applyPermissionUI() {
+  // Hide menu items users cannot access
+  const navMap = {
+    'nav-users': 'users:read',
+    'nav-groups': 'groups:read',
+    'nav-computers': 'computers:read',
+    'nav-contacts': 'contacts:read',
+    'nav-reports': 'reports:read',
+    'nav-audit': 'audit:read',
+    'nav-scheduled': 'scheduled_access:manage',
+    'nav-endpoints': 'endpoints:read'
+  };
+  for (const [id, perm] of Object.entries(navMap)) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = hasPermission(perm) ? '' : 'none';
+  }
+  // Dashboard quick actions
+  const qaMap = {
+    'qa-create-user': 'users:create',
+    'qa-manage-groups': 'groups:read',
+    'qa-schedule-access': 'scheduled_access:manage',
+    'qa-run-reports': 'reports:read',
+    'qa-deploy': 'endpoints:read',
+    'qa-audit': 'audit:read'
+  };
+  for (const [id, perm] of Object.entries(qaMap)) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = hasPermission(perm) ? '' : 'none';
+  }
+  // Tools
+  const toolMap = {
+    'tool-sspr': 'users:reset_password',
+    'tool-recycle': 'reports:restore',
+    'tool-attr': 'reports:write_attributes',
+    'tool-rbac': 'rbac:manage',
+    'tool-photo': 'users:edit',
+    'tool-ldap': 'reports:read'
+  };
+  for (const [id, perm] of Object.entries(toolMap)) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = hasPermission(perm) ? '' : 'none';
+  }
+  // Show/hide RBAC management in user dropdown/menu as needed
+  const rbacBtn = document.getElementById('rbac-menu-btn');
+  if (rbacBtn) rbacBtn.style.display = hasPermission('rbac:manage') ? '' : 'none';
+}
+
+function showIfPermission(elementId, permission) {
+  const el = document.getElementById(elementId);
+  if (el) el.style.display = hasPermission(permission) ? '' : 'none';
+}
+
+function disableIfNoPermission(elementId, permission) {
+  const el = document.getElementById(elementId);
+  if (el) {
+    const allowed = hasPermission(permission);
+    el.disabled = !allowed;
+    el.style.opacity = allowed ? '' : '0.5';
+    el.style.pointerEvents = allowed ? '' : 'none';
   }
 }
 
@@ -1931,9 +2016,17 @@ function renderUsersTable(users) {
     return;
   }
   const totalPages = Math.ceil(userTotalCount / userPageSize);
+  const canEnable = hasPermission('users:enable');
+  const canDisable = hasPermission('users:disable');
+  const canReset = hasPermission('users:reset_password');
+  const canDelete = hasPermission('users:delete');
   const rows = users.map(u => {
     const isDisabled = u.userAccountControl && (u.userAccountControl & 2) !== 0;
     const dn = encodeURIComponent(u.dn || u.distinguishedName || '');
+    const enableBtn = canEnable ? `<button class="btn btn-success btn-sm" onclick="toggleUser('${dn}','enable')">Enable</button>` : '';
+    const disableBtn = canDisable ? `<button class="btn btn-warn btn-sm" onclick="toggleUser('${dn}','disable')">Disable</button>` : '';
+    const resetBtn = canReset ? `<button class="btn btn-ghost btn-sm" onclick="openResetPass('${dn}','${((u.displayName||u.sAMAccountName||'')).replace(/'/g,"\\'")}')">Reset PW</button>` : '';
+    const deleteBtn = canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${dn}','${((u.displayName||u.sAMAccountName||'')).replace(/'/g,"\\'")}')">Delete</button>` : '';
     return `<tr>
       <td>${dn ? `<input type="checkbox" class="user-cb" value="${dn}" onchange="toggleBulkUser('${dn}',this.checked)" />` : ''}</td>
       <td><strong style="cursor:pointer;color:var(--primary)" onclick="showUserProfile('${dn}','${((u.displayName||u.sAMAccountName||'')).replace(/'/g,"\\'")}')">${u.displayName || '—'}</strong></td>
@@ -1945,11 +2038,9 @@ function renderUsersTable(users) {
         : '<span class="badge badge-green">Active</span>'}</td>
       <td>
         <div class="actions">
-          ${dn ? (isDisabled
-            ? `<button class="btn btn-success btn-sm" onclick="toggleUser('${dn}','enable')">Enable</button>`
-            : `<button class="btn btn-warn btn-sm" onclick="toggleUser('${dn}','disable')">Disable</button>`) : ''}
-          ${dn ? `<button class="btn btn-ghost btn-sm" onclick="openResetPass('${dn}','${((u.displayName||u.sAMAccountName||'')).replace(/'/g,"\\'")}')">Reset PW</button>` : ''}
-          ${dn ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${dn}','${((u.displayName||u.sAMAccountName||'')).replace(/'/g,"\\'")}')">Delete</button>` : ''}
+          ${dn ? (isDisabled ? enableBtn : disableBtn) : ''}
+          ${dn ? resetBtn : ''}
+          ${dn ? deleteBtn : ''}
         </div>
       </td>
     </tr>`;
@@ -1975,6 +2066,7 @@ function renderUsersTable(users) {
   const infoLabel = userStatusFilter ? `${userStatusFilter} users` : 'users';
   const infoHtml = `<div style="padding:8px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)">Showing ${users.length} of ${userTotalCount.toLocaleString()} ${infoLabel} — Page ${userPage} of ${totalPages}</div>`;
 
+  const canBulk = hasPermission('users:bulk');
   document.getElementById('users-table-wrap').innerHTML = `
     <div id="bulk-bar" style="display:none;padding:8px 12px;background:var(--primary-dim);border-bottom:1px solid var(--primary);align-items:center;gap:8px;flex-wrap:wrap">
       <span id="bulk-count" style="font-size:12px;font-weight:600;color:var(--primary)">0 selected</span>
@@ -2010,8 +2102,12 @@ function toggleBulkUser(dn, checked) {
 function updateBulkBar() {
   const bar = document.getElementById('bulk-bar');
   if (!bar) return;
+  if (!hasPermission('users:bulk')) {
+    bar.style.display = 'none';
+    return;
+  }
   const count = bulkSelected.size;
-  bar.style.display = count ? 'flex' : 'none';
+  bar.style.display = count > 0 ? 'flex' : 'none';
   document.getElementById('bulk-count').textContent = count + ' selected';
 }
 function clearBulkSelect() {
@@ -2172,6 +2268,10 @@ function openSSPR() {
   openModal('modal-sspr');
 }
 async function submitSSPR() {
+  if (!hasPermission('users:reset_password')) {
+    document.getElementById('sspr-result').innerHTML = '<span style="color:var(--danger)">Permission denied.</span>';
+    return;
+  }
   const username = document.getElementById('sspr-user').value.trim();
   const password = document.getElementById('sspr-pass').value;
   const resultDiv = document.getElementById('sspr-result');
@@ -2202,6 +2302,7 @@ function formatADDate(adDate) {
 }
 
 function restoreDeletedObject(dn, parentDN) {
+  if (!hasPermission('reports:restore')) { showToast('Permission denied.', 'error'); return; }
   if (!dn) return;
   if (!confirm('Restore this object to its original location?')) return;
   api('/api/reports/restore', { method: 'POST', body: JSON.stringify({ dn: dn, parentDN: parentDN }) }).then(function(data) {
@@ -2246,6 +2347,10 @@ async function readAttribute() {
   } catch (e) { resultDiv.innerHTML = '<span style="color:var(--danger)">Error: ' + e.message + '</span>'; }
 }
 async function writeAttribute() {
+  if (!hasPermission('reports:write_attributes')) {
+    document.getElementById('ae-result').innerHTML = '<span style="color:var(--danger)">Permission denied.</span>';
+    return;
+  }
   const dn = document.getElementById('ae-dn').value.trim();
   const attr = document.getElementById('ae-attr').value.trim();
   const value = document.getElementById('ae-value').value;
@@ -2261,12 +2366,128 @@ async function writeAttribute() {
 
 // ── RBAC ─────────────────────────────────────────────────────────────────
 function openRBAC() {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.style.display = 'flex';
-  overlay.innerHTML = '<div class="modal" style="max-width:500px"><div class="modal-header"><h3>Role-Based Access Control</h3><button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">×</button></div><div class="modal-body"><p style="font-size:13px;color:var(--muted);margin-bottom:16px">Current user: <strong>' + (currentUser?.username || 'Unknown') + '</strong></p><div style="display:flex;flex-direction:column;gap:8px"><div style="padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)"><strong>Admin</strong><div style="font-size:12px;color:var(--muted)">Full access</div></div><div style="padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)"><strong>Helpdesk</strong><div style="font-size:12px;color:var(--muted)">Reset passwords, enable/disable</div></div><div style="padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)"><strong>Read-Only</strong><div style="font-size:12px;color:var(--muted)">View directory, run reports</div></div></div></div></div>';
-  document.body.appendChild(overlay);
-  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  if (!hasPermission('rbac:manage')) {
+    showToast('You do not have permission to manage roles.', 'error');
+    return;
+  }
+  loadRBACManager();
+}
+
+async function loadRBACManager() {
+  try {
+    const [rolesRes, permsRes, assignmentsRes] = await Promise.all([
+      api('/api/rbac/roles'),
+      api('/api/auth/permissions'),
+      api('/api/rbac/assignments')
+    ]);
+    const roles = rolesRes?.roles || [];
+    const allPermissions = permsRes?.permissions || [];
+    const assignments = assignmentsRes?.assignments || [];
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+    overlay.id = 'rbac-overlay';
+
+    let html = `<div class="modal" style="max-width:95vw;width:1100px;max-height:90vh;display:flex;flex-direction:column">
+      <div class="modal-header"><h3>Role-Based Access Control</h3><button class="modal-close" onclick="document.getElementById('rbac-overlay').remove()">×</button></div>
+      <div class="modal-body" style="overflow-y:auto;padding:20px">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Current user: <strong>${currentUser?.username || 'Unknown'}</strong> · Roles: ${userRoles.map(r=>r.name).join(', ') || 'None'}</p>
+        <h4 style="margin-top:0">Roles</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:20px">`;
+
+    for (const r of roles) {
+      html += `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--bg)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>${r.name}</strong> ${r.is_system ? '<span class="badge badge-green">system</span>' : ''}</div>
+          ${r.is_system ? '' : `<button class="btn btn-danger btn-sm" onclick="deleteRole(${r.id})">Delete</button>`}
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin:6px 0">${r.description || ''}</div>
+        <div style="font-size:11px;color:var(--muted)">Permissions: ${(r.permissions || []).join(', ') || 'none'}</div>
+      </div>`;
+    }
+
+    html += `</div>
+        <h4>Create Custom Role</h4>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+          <input type="text" id="rbac-new-role-name" placeholder="Role name" style="padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" />
+          <input type="text" id="rbac-new-role-desc" placeholder="Description" style="padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" />
+          <div style="max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:8px;background:var(--surface)">
+            ${allPermissions.map(p => `<label style="display:block;font-size:12px;margin:2px 0;cursor:pointer"><input type="checkbox" class="rbac-new-perm" value="${p}" /> ${p}</label>`).join('')}
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="createRole()" style="align-self:flex-start">Create Role</button>
+        </div>
+        <h4>Assign Roles to Users</h4>
+        <div style="display:flex;gap:12px;margin-bottom:12px;align-items:flex-end">
+          <div style="flex:2;min-width:250px">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Username (UPN)</label>
+            <input type="text" id="rbac-assign-username" placeholder="user@domain.com" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" />
+          </div>
+          <div style="flex:1;min-width:150px">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Role</label>
+            <select id="rbac-assign-role" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">${roles.map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}</select>
+          </div>
+          <button class="btn btn-primary" onclick="assignRole()" style="padding:8px 20px">Assign</button>
+        </div>
+        <div style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:4px">
+          <table class="data-table" style="margin:0;table-layout:auto">
+            <thead><tr><th style="min-width:220px">Username</th><th style="min-width:140px">Role</th><th style="min-width:140px">Granted By</th><th style="width:90px"></th></tr></thead>
+            <tbody>
+              ${assignments.map(a => `<tr><td style="word-break:break-all">${a.username}</td><td>${a.role_name}</td><td>${a.granted_by || '—'}</td><td><button class="btn btn-danger btn-sm" onclick="revokeRole('${a.username}',${a.role_id})">Revoke</button></td></tr>`).join('')}
+            </tbody>
+          </table>
+          ${assignments.length === 0 ? '<div style="padding:12px;font-size:12px;color:var(--muted);text-align:center">No role assignments yet.</div>' : ''}
+        </div>
+      </div>
+    </div>`;
+
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  } catch (e) {
+    showToast('Failed to load RBAC manager: ' + e.message, 'error');
+  }
+}
+
+async function createRole() {
+  const name = document.getElementById('rbac-new-role-name').value.trim();
+  const description = document.getElementById('rbac-new-role-desc').value.trim();
+  const permissions = Array.from(document.querySelectorAll('.rbac-new-perm:checked')).map(cb => cb.value);
+  if (!name || !permissions.length) { showToast('Enter role name and select at least one permission.', 'error'); return; }
+  try {
+    const data = await api('/api/rbac/roles', { method: 'POST', body: JSON.stringify({ name, description, permissions }) });
+    if (data?.success) { showToast('Role created', 'success'); document.getElementById('rbac-overlay').remove(); openRBAC(); }
+    else { showToast(data?.error || 'Failed', 'error'); }
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function deleteRole(id) {
+  if (!confirm('Delete this role?')) return;
+  try {
+    const data = await api('/api/rbac/roles/' + id, { method: 'DELETE' });
+    if (data?.success) { showToast('Role deleted', 'success'); document.getElementById('rbac-overlay').remove(); openRBAC(); }
+    else { showToast(data?.error || 'Failed', 'error'); }
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function assignRole() {
+  const username = document.getElementById('rbac-assign-username').value.trim();
+  const roleId = parseInt(document.getElementById('rbac-assign-role').value);
+  if (!username || !roleId) { showToast('Enter username and select a role.', 'error'); return; }
+  try {
+    const data = await api('/api/rbac/assignments', { method: 'POST', body: JSON.stringify({ username, role_id: roleId }) });
+    if (data?.success) { showToast('Role assigned', 'success'); document.getElementById('rbac-overlay').remove(); openRBAC(); }
+    else { showToast(data?.error || 'Failed', 'error'); }
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function revokeRole(username, roleId) {
+  if (!confirm('Revoke this role from ' + username + '?')) return;
+  try {
+    const data = await api('/api/rbac/assignments', { method: 'DELETE', body: JSON.stringify({ username, role_id: roleId }) });
+    if (data?.success) { showToast('Role revoked', 'success'); document.getElementById('rbac-overlay').remove(); openRBAC(); }
+    else { showToast(data?.error || 'Failed', 'error'); }
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 
 // ── USER PHOTO UPLOAD ────────────────────────────────────────────────────

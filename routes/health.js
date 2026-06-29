@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const adService = require('../services/ad.service');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('settings:manage'), async (req, res) => {
   try {
     const result = await adService.getADHealth();
     res.json(result);

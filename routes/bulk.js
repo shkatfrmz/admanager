@@ -4,11 +4,12 @@ const adService = require('../services/ad.service');
 const audit = require('../services/audit.service');
 const cache = require('../db/cache.repository');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
 // ── POST /api/bulk/import — CSV import users ─────────────────────────────
-router.post('/import', async (req, res) => {
+router.post('/import', requirePermission('users:bulk'), async (req, res) => {
   try {
     const { users } = req.body;
     if (!users || !Array.isArray(users) || !users.length) {
@@ -55,7 +56,7 @@ router.post('/import', async (req, res) => {
 });
 
 // ── GET /api/bulk/export — export users as CSV ────────────────────────────
-router.get('/export', (req, res) => {
+router.get('/export', requirePermission('users:read'), (req, res) => {
   try {
     const users = cache.getAllUsers(10000, 0);
     if (!users || !users.length) {

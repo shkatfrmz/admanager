@@ -5,11 +5,12 @@ const cache = require('../db/cache.repository');
 const syncService = require('../services/sync.service');
 const audit = require('../services/audit.service');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
 // ── POST create group ─────────────────────────────────────────────────────
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('groups:create'), async (req, res) => {
   try {
     const result = await adService.createGroup(req.body);
     const performer = req.user?.username || 'unknown';
@@ -23,7 +24,7 @@ router.post('/', async (req, res) => {
 });
 
 // ── PATCH update group ────────────────────────────────────────────────────
-router.patch('/:dn', async (req, res) => {
+router.patch('/:dn', requirePermission('groups:edit'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const result = await adService.updateGroup(dn, req.body);
@@ -37,7 +38,7 @@ router.patch('/:dn', async (req, res) => {
 });
 
 // ── DELETE group ──────────────────────────────────────────────────────────
-router.delete('/:dn', async (req, res) => {
+router.delete('/:dn', requirePermission('groups:delete'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const result = await adService.deleteGroup(dn);
@@ -51,7 +52,7 @@ router.delete('/:dn', async (req, res) => {
 });
 
 // ── GET all groups (from cache) ───────────────────────────────────────────────
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('groups:read'), async (req, res) => {
   try {
     const { search } = req.query;
     const limit = Math.min(parseInt(req.query.limit) || 100, 500); // Cap at 500
@@ -116,7 +117,7 @@ router.get('/', async (req, res) => {
 });
 
 // ── GET group members (from cache — joined against cached users) ─────────────
-router.get('/:groupName/members', async (req, res) => {
+router.get('/:groupName/members', requirePermission('groups:read'), async (req, res) => {
   try {
     const group = cache.getGroupByName(decodeURIComponent(req.params.groupName));
     if (!group) return res.status(404).json({ error: 'Group not found in cache' });
@@ -128,7 +129,7 @@ router.get('/:groupName/members', async (req, res) => {
 });
 
 // ── POST add user to group (writes to AD, refreshes that group's cache) ──────
-router.post('/:groupDN/members', async (req, res) => {
+router.post('/:groupDN/members', requirePermission('groups:manage_members'), async (req, res) => {
   try {
     const groupDN = decodeURIComponent(req.params.groupDN);
     const { userDN } = req.body;
@@ -173,7 +174,7 @@ router.post('/:groupDN/members', async (req, res) => {
 });
 
 // ── DELETE remove user from group ─────────────────────────────────────────────
-router.delete('/:groupDN/members/:userDN', async (req, res) => {
+router.delete('/:groupDN/members/:userDN', requirePermission('groups:manage_members'), async (req, res) => {
   try {
     const groupDN = decodeURIComponent(req.params.groupDN);
     const userDN = decodeURIComponent(req.params.userDN);
@@ -202,7 +203,7 @@ router.delete('/:groupDN/members/:userDN', async (req, res) => {
 });
 
 // ── POST force a manual sync right now ────────────────────────────────────────
-router.post('/sync/now', async (req, res) => {
+router.post('/sync/now', requirePermission('sync:trigger'), async (req, res) => {
   try {
     const result = await syncService.syncGroups();
     res.json(result);

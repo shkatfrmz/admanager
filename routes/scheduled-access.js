@@ -4,11 +4,12 @@ const db = require('../db/database');
 const adService = require('../services/ad.service');
 const audit = require('../services/audit.service');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
 // ── GET all scheduled access entries ─────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', requirePermission('scheduled_access:manage'), (req, res) => {
   try {
     const entries = db.prepare('SELECT * FROM scheduled_access ORDER BY created_at DESC').all();
     res.json({ success: true, count: entries.length, entries });
@@ -18,7 +19,7 @@ router.get('/', (req, res) => {
 });
 
 // ── POST create a scheduled access entry ─────────────────────────────────────
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('scheduled_access:manage'), async (req, res) => {
   try {
     const { userDN, groupDN, userName, groupName, startTime, endTime } = req.body;
 
@@ -58,7 +59,7 @@ router.post('/', async (req, res) => {
 });
 
 // ── DELETE permanently delete an old entry ──────────────────────────────────
-router.delete('/entry/:id', async (req, res) => {
+router.delete('/entry/:id', requirePermission('scheduled_access:manage'), async (req, res) => {
   try {
     const entry = db.prepare('SELECT * FROM scheduled_access WHERE id = ?').get(req.params.id);
     if (!entry) return res.status(404).json({ error: 'Entry not found' });
@@ -84,7 +85,7 @@ router.delete('/entry/:id', async (req, res) => {
 });
 
 // ── DELETE cancel a scheduled access entry and remove user from group ────────
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('scheduled_access:manage'), async (req, res) => {
   try {
     const entry = db.prepare('SELECT * FROM scheduled_access WHERE id = ?').get(req.params.id);
     if (!entry) return res.status(404).json({ error: 'Entry not found' });

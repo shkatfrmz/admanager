@@ -68,6 +68,7 @@ app.use('/api/ous',         require('./routes/ous'));
 app.use('/api/reports',     require('./routes/reports'));
 app.use('/api/bulk',        require('./routes/bulk'));
 app.use('/api/endpoints',   require('./routes/endpoints'));
+app.use('/api/rbac',        require('./routes/rbac'));
 app.use('/api/health',      require('./routes/health'));
 
 // ── Health check ──────────────────────────────────────────────────────────────

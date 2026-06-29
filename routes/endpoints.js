@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'packages');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -131,7 +132,7 @@ router.get('/deployments/download/:filename', (req, res) => {
 router.use(authMiddleware);
 
 // ── GET /api/endpoints ────────────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', requirePermission('endpoints:read'), (req, res) => {
   try {
     const { status, search } = req.query;
     let query = 'SELECT * FROM endpoints';
@@ -155,7 +156,7 @@ router.get('/', (req, res) => {
 });
 
 // ── GET /api/endpoints/:id ───────────────────────────────────────────────
-router.get('/:id', (req, res) => {
+router.get('/:id', requirePermission('endpoints:read'), (req, res) => {
   try {
     const ep = db.prepare('SELECT * FROM endpoints WHERE id = ?').get(req.params.id);
     if (!ep) return res.status(404).json({ error: 'Endpoint not found' });
@@ -165,7 +166,7 @@ router.get('/:id', (req, res) => {
 });
 
 // ── GET /api/deployments ─────────────────────────────────────────────────
-router.get('/deployments/list', (req, res) => {
+router.get('/deployments/list', requirePermission('endpoints:read'), (req, res) => {
   try {
     const { status: filterStatus, endpoint_id } = req.query;
     let query = `
@@ -186,7 +187,7 @@ router.get('/deployments/list', (req, res) => {
 });
 
 // ── POST /api/deployments ────────────────────────────────────────────────
-router.post('/deployments', (req, res) => {
+router.post('/deployments', requirePermission('endpoints:deploy'), (req, res) => {
   try {
     const { file_id, endpoint_id } = req.body;
     if (!file_id || !endpoint_id) return res.status(400).json({ error: 'file_id and endpoint_id are required' });
@@ -200,7 +201,7 @@ router.post('/deployments', (req, res) => {
 });
 
 // ── POST /api/deployments/bulk ───────────────────────────────────────────
-router.post('/deployments/bulk', (req, res) => {
+router.post('/deployments/bulk', requirePermission('endpoints:deploy'), (req, res) => {
   try {
     const { file_id, endpoint_ids } = req.body;
     if (!file_id || !endpoint_ids || !Array.isArray(endpoint_ids) || endpoint_ids.length === 0)
@@ -215,7 +216,7 @@ router.post('/deployments/bulk', (req, res) => {
 });
 
 // ── POST /api/deployments/upload ─────────────────────────────────────────
-router.post('/deployments/upload', upload.single('file'), (req, res) => {
+router.post('/deployments/upload', requirePermission('endpoints:manage'), upload.single('file'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const { name, description } = req.body;
@@ -255,7 +256,7 @@ function cleanupDuplicatePackages() {
 }
 
 // ── GET /api/deployments/files ───────────────────────────────────────────
-router.get('/deployments/files', (req, res) => {
+router.get('/deployments/files', requirePermission('endpoints:read'), (req, res) => {
   try {
     const files = db.prepare('SELECT * FROM deployment_files ORDER BY created_at DESC').all();
     res.json({ success: true, count: files.length, files });
@@ -263,7 +264,7 @@ router.get('/deployments/files', (req, res) => {
 });
 
 // ── POST /api/deployments/cleanup-duplicates ─────────────────────────────
-router.post('/deployments/cleanup-duplicates', (req, res) => {
+router.post('/deployments/cleanup-duplicates', requirePermission('endpoints:manage'), (req, res) => {
   try {
     const result = cleanupDuplicatePackages();
     res.json({ success: true, message: `Cleaned up ${result.deleted} duplicate package(s)`, ...result });
@@ -271,7 +272,7 @@ router.post('/deployments/cleanup-duplicates', (req, res) => {
 });
 
 // ── DELETE /api/deployments/files/:id ────────────────────────────────────
-router.delete('/deployments/files/:id', (req, res) => {
+router.delete('/deployments/files/:id', requirePermission('endpoints:manage'), (req, res) => {
   try {
     const f = db.prepare('SELECT * FROM deployment_files WHERE id = ?').get(req.params.id);
     if (!f) return res.status(404).json({ error: 'File not found' });
@@ -284,7 +285,7 @@ router.delete('/deployments/files/:id', (req, res) => {
 });
 
 // ── POST /api/deployments/:id/cancel ─────────────────────────────────────
-router.post('/deployments/:id/cancel', (req, res) => {
+router.post('/deployments/:id/cancel', requirePermission('endpoints:deploy'), (req, res) => {
   try {
     const d = db.prepare('SELECT id FROM deployments WHERE id = ? AND status IN (\'pending\',\'in_progress\')').get(req.params.id);
     if (!d) return res.status(404).json({ error: 'Deployment not found or already completed' });

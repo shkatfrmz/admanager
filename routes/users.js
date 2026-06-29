@@ -5,12 +5,13 @@ const cache = require('../db/cache.repository');
 const syncService = require('../services/sync.service');
 const audit = require('../services/audit.service');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 // All routes below require authentication
 router.use(authMiddleware);
 
 // ── GET all users (reads from SQLite cache — fast) ───────────────────────────
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('users:read'), async (req, res) => {
   try {
     const { search, status } = req.query;
     const limit = Math.min(parseInt(req.query.limit) || 5000, 20000);
@@ -96,7 +97,7 @@ router.get('/', async (req, res) => {
 });
 
 // ── GET dashboard stats (direct SQL aggregation — fast) ────────────────────
-router.get('/stats', async (req, res) => {
+router.get('/stats', requirePermission('users:read'), async (req, res) => {
   try {
     const stats = cache.getStats();
     // Get real total from AD (paged query to bypass 1000 limit)
@@ -112,7 +113,7 @@ router.get('/stats', async (req, res) => {
 });
 
 // ── GET single user (cache first, falls back to live AD) ─────────────────────
-router.get('/:username', async (req, res) => {
+router.get('/:username', requirePermission('users:read'), async (req, res) => {
   try {
     let user = cache.getUserByUsername(req.params.username);
     if (!user) user = await adService.findUser(req.params.username);
@@ -138,7 +139,7 @@ router.get('/:username', async (req, res) => {
 });
 
 // ── GET user groups (live — membership detail not critical to cache) ─────────
-router.get('/:username/groups', async (req, res) => {
+router.get('/:username/groups', requirePermission('users:read'), async (req, res) => {
   try {
     const groups = await adService.getUserGroups(req.params.username);
     res.json({ success: true, groups });
@@ -148,7 +149,7 @@ router.get('/:username/groups', async (req, res) => {
 });
 
 // ── POST create user (writes to AD, then patches cache immediately) ──────────
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('users:create'), async (req, res) => {
   try {
     const { firstName, lastName, username, upn, password, department, title, email, ou, accountExpiry, passwordNeverExpires, userMustChangePassword, userCannotChangePassword } = req.body;
 
@@ -185,7 +186,7 @@ router.post('/', async (req, res) => {
 });
 
 // ── PATCH update user attributes ──────────────────────────────────────────────
-router.patch('/:dn', async (req, res) => {
+router.patch('/:dn', requirePermission('users:edit'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const result = await adService.updateUser(dn, req.body);
@@ -201,7 +202,7 @@ router.patch('/:dn', async (req, res) => {
 });
 
 // ── POST enable user ───────────────────────────────────────────────────────────
-router.post('/:dn/enable', async (req, res) => {
+router.post('/:dn/enable', requirePermission('users:enable'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     console.log(`[users] Enabling user: ${dn}`);
@@ -231,7 +232,7 @@ router.post('/:dn/enable', async (req, res) => {
 });
 
 // ── POST disable user ────────────────────────────────────────────────────────
-router.post('/:dn/disable', async (req, res) => {
+router.post('/:dn/disable', requirePermission('users:disable'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     console.log(`[users] Disabling user: ${dn}`);
@@ -261,7 +262,7 @@ router.post('/:dn/disable', async (req, res) => {
 });
 
 // ── POST reset password (no cache field for this — passthrough) ──────────────
-router.post('/:dn/reset-password', async (req, res) => {
+router.post('/:dn/reset-password', requirePermission('users:reset_password'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const { newPassword } = req.body;
@@ -276,7 +277,7 @@ router.post('/:dn/reset-password', async (req, res) => {
 });
 
 // ── POST move user to different OU (DN changes, so re-sync that user) ────────
-router.post('/:dn/move', async (req, res) => {
+router.post('/:dn/move', requirePermission('users:edit'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const { newOU } = req.body;
@@ -292,7 +293,7 @@ router.post('/:dn/move', async (req, res) => {
 });
 
 // ── DELETE user ──────────────────────────────────────────────────────────────
-router.delete('/:dn', async (req, res) => {
+router.delete('/:dn', requirePermission('users:delete'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     console.log(`[users] Deleting user: ${dn}`);
@@ -321,7 +322,7 @@ router.delete('/:dn', async (req, res) => {
 });
 
 // ── POST force a manual sync right now ────────────────────────────────────────
-router.post('/sync/now', async (req, res) => {
+router.post('/sync/now', requirePermission('sync:trigger'), async (req, res) => {
   try {
     const result = await syncService.syncUsers();
     res.json(result);
@@ -331,7 +332,7 @@ router.post('/sync/now', async (req, res) => {
 });
 
 // ── POST create GMSA (Group Managed Service Account) ─────────────────────────
-router.post('/gmsa', async (req, res) => {
+router.post('/gmsa', requirePermission('users:create'), async (req, res) => {
   try {
     const result = await adService.createGMSA(req.body);
     const performer = req.user?.username || 'unknown';
@@ -343,7 +344,7 @@ router.post('/gmsa', async (req, res) => {
 });
 
 // ── GET password expiration stats ────────────────────────────────────────────
-router.get('/password-expiry/stats', async (req, res) => {
+router.get('/password-expiry/stats', requirePermission('reports:read'), async (req, res) => {
   try {
     const users = cache.getAllUsers(20000, 0);
     const now = Math.floor(Date.now() / 1000);
@@ -371,7 +372,7 @@ router.get('/password-expiry/stats', async (req, res) => {
 });
 
 // ── GET stale accounts (not logged in for N+ days) ────────────────────────────
-router.get('/stale/list', async (req, res) => {
+router.get('/stale/list', requirePermission('reports:read'), async (req, res) => {
   try {
     const days = parseInt(req.query.days) || 90;
     const users = cache.getAllUsers(20000, 0);

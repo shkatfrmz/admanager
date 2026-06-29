@@ -3,12 +3,13 @@ const router = express.Router();
 const adService = require('../services/ad.service');
 const audit = require('../services/audit.service');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 const cache = require('../db/cache.repository');
 
 router.use(authMiddleware);
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('computers:read'), async (req, res) => {
   try {
     const { search, page = 1, limit = 50 } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -41,7 +42,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:name', async (req, res) => {
+router.get('/:name', requirePermission('computers:read'), async (req, res) => {
   try {
     const computer = await adService.findComputer(req.params.name);
     if (!computer) return res.status(404).json({ error: 'Computer not found' });
@@ -51,7 +52,7 @@ router.get('/:name', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('computers:create'), async (req, res) => {
   try {
     const result = await adService.createComputer(req.body);
     const performer = req.user?.username || 'unknown';
@@ -62,7 +63,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.delete('/:dn', async (req, res) => {
+router.delete('/:dn', requirePermission('computers:delete'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const result = await adService.deleteComputer(dn);
@@ -74,7 +75,7 @@ router.delete('/:dn', async (req, res) => {
   }
 });
 
-router.post('/:dn/enable', async (req, res) => {
+router.post('/:dn/enable', requirePermission('computers:enable'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const result = await adService.enableComputer(dn);
@@ -86,7 +87,7 @@ router.post('/:dn/enable', async (req, res) => {
   }
 });
 
-router.post('/:dn/disable', async (req, res) => {
+router.post('/:dn/disable', requirePermission('computers:disable'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const result = await adService.disableComputer(dn);
@@ -98,7 +99,7 @@ router.post('/:dn/disable', async (req, res) => {
   }
 });
 
-router.post('/:dn/reset', async (req, res) => {
+router.post('/:dn/reset', requirePermission('computers:disable'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const result = await adService.resetComputer(dn);

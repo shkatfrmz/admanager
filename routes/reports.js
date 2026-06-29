@@ -5,6 +5,7 @@ const db = require('../db/database');
 const adService = require('../services/ad.service');
 const audit = require('../services/audit.service');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
@@ -83,7 +84,7 @@ const categories = [
   }
 ];
 
-router.get('/', (req, res) => {
+router.get('/', requirePermission('reports:read'), (req, res) => {
   const flat = [];
   for (const cat of categories) {
     for (const r of cat.reports) {
@@ -94,7 +95,7 @@ router.get('/', (req, res) => {
 });
 
 // ── GET deleted objects (AD Recycle Bin) ─────────────────────────────────────
-router.get('/deleted-objects', async (req, res) => {
+router.get('/deleted-objects', requirePermission('reports:read'), async (req, res) => {
   try {
     const objects = await adService.getDeletedObjects();
     res.json({ success: true, objects });
@@ -104,7 +105,7 @@ router.get('/deleted-objects', async (req, res) => {
 });
 
 // ── POST restore deleted object ──────────────────────────────────────────────
-router.post('/restore', async (req, res) => {
+router.post('/restore', requirePermission('reports:restore'), async (req, res) => {
   try {
     const { dn, parentDN } = req.body;
     if (!dn) return res.status(400).json({ error: 'DN is required' });
@@ -116,7 +117,7 @@ router.post('/restore', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('reports:read'), async (req, res) => {
   try {
     const { id } = req.params;
     let data = [];
@@ -416,7 +417,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // ── POST advanced LDAP query ────────────────────────────────────────────────
-router.post('/ldap-query', async (req, res) => {
+router.post('/ldap-query', requirePermission('reports:read'), async (req, res) => {
   try {
     const { objectClass, filter, attributes } = req.body;
     const results = await adService.ldapQuery(objectClass, filter, attributes);
@@ -427,7 +428,7 @@ router.post('/ldap-query', async (req, res) => {
 });
 
 // ── POST read attribute ──────────────────────────────────────────────────────
-router.post('/read-attribute', async (req, res) => {
+router.post('/read-attribute', requirePermission('reports:read'), async (req, res) => {
   try {
     const { dn, attribute } = req.body;
     const value = await adService.readAttribute(dn, attribute);
@@ -438,7 +439,7 @@ router.post('/read-attribute', async (req, res) => {
 });
 
 // ── POST write attribute ──────────────────────────────────────────────────────
-router.post('/write-attribute', async (req, res) => {
+router.post('/write-attribute', requirePermission('reports:write_attributes'), async (req, res) => {
   try {
     const { dn, attribute, value } = req.body;
     const result = await adService.writeAttribute(dn, attribute, value);

@@ -4,10 +4,11 @@ const adService = require('../services/ad.service');
 const audit = require('../services/audit.service');
 const db = require('../db/database');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('ous:read'), async (req, res) => {
   try {
     const { search } = req.query;
     const ous = await adService.searchOUs(search || null);
@@ -17,7 +18,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('settings:manage'), async (req, res) => {
   try {
     const result = await adService.createOU(req.body);
     const performer = req.user?.username || 'unknown';
@@ -28,7 +29,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.delete('/:dn', async (req, res) => {
+router.delete('/:dn', requirePermission('settings:manage'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const result = await adService.deleteOU(dn);

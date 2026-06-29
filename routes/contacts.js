@@ -3,10 +3,11 @@ const router = express.Router();
 const adService = require('../services/ad.service');
 const audit = require('../services/audit.service');
 const authMiddleware = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('contacts:read'), async (req, res) => {
   try {
     const { search } = req.query;
     const contacts = await adService.searchContacts(search || null);
@@ -16,7 +17,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:name', async (req, res) => {
+router.get('/:name', requirePermission('contacts:read'), async (req, res) => {
   try {
     const contact = await adService.findContact(req.params.name);
     if (!contact) return res.status(404).json({ error: 'Contact not found' });
@@ -26,7 +27,7 @@ router.get('/:name', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('contacts:edit'), async (req, res) => {
   try {
     const result = await adService.createContact(req.body);
     const performer = req.user?.username || 'unknown';
@@ -37,7 +38,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.patch('/:dn', async (req, res) => {
+router.patch('/:dn', requirePermission('contacts:edit'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const result = await adService.updateContact(dn, req.body);
@@ -49,7 +50,7 @@ router.patch('/:dn', async (req, res) => {
   }
 });
 
-router.delete('/:dn', async (req, res) => {
+router.delete('/:dn', requirePermission('contacts:edit'), async (req, res) => {
   try {
     const dn = decodeURIComponent(req.params.dn);
     const result = await adService.deleteContact(dn);

@@ -75,7 +75,9 @@ $cred = New-Object System.Management.Automation.PSCredential('${escapedUsername}
     const escapedRemoteNupkg = remoteNupkg.replace(/'/g, "''");
     const escapedRemoteTemp = remoteTemp.replace(/'/g, "''");
     remoteScript = `
-    New-Item -Path '${escapedRemoteTemp}' -ItemType Directory -Force | Out-Null
+    $result = Invoke-Command -Session $session -ScriptBlock {
+      New-Item -Path '${escapedRemoteTemp}' -ItemType Directory -Force | Out-Null
+    }
     Copy-Item -Path '${escapedLocalPath}' -Destination '${escapedRemoteNupkg}' -ToSession $session -Force
     $result = Invoke-Command -Session $session -ScriptBlock {
       $nupkg = '${escapedRemoteNupkg}'

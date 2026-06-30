@@ -6,9 +6,22 @@ const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL'); // better concurrent read/write performance
 
+// Idempotent migration helper
+function addColumnIfMissing(table, column, definition) {
+  const info = db.prepare(`PRAGMA table_info(${table})`).all();
+  const exists = info.some(col => col.name === column);
+  if (!exists) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    console.log(`[db] Added column ${column} to ${table}`);
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // SCHEMA
 // ════════════════════════════════════════════════════════════════════════════
+
+// Migration: add install_args if missing
+addColumnIfMissing('deployment_files', 'install_args', 'TEXT');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -179,9 +192,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_deployments_endpoint ON deployments(endpoint_id);
   CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
   CREATE INDEX IF NOT EXISTS idx_endpoints_status ON endpoints(status);
-
-  -- Migration: add install_args to deployment_files if missing
-  ALTER TABLE deployment_files ADD COLUMN install_args TEXT;
 
   -- WinRM deployment tracking
   CREATE TABLE IF NOT EXISTS winrm_deployments (

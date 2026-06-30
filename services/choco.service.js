@@ -5,23 +5,14 @@ const os = require('os');
 const crypto = require('crypto');
 const dns = require('dns');
 const db = require('../db/database');
+const chocoPackageService = require('./choco-package.service');
 
 const WORK_DIR = path.join(os.tmpdir(), 'ad-manager-choco');
 if (!fs.existsSync(WORK_DIR)) fs.mkdirSync(WORK_DIR, { recursive: true });
 
 /**
  * Execute Chocolatey package deployment via WinRM push.
- * @param {Object} opts
- * @param {string} opts.packageName e.g. '7zip'
- * @param {string} [opts.packageVersion]
- * @param {string} [opts.source] choco source, default '' (public)
- * @param {string} [opts.chocoArgs]
- * @param {string[]} opts.hostnames
- * @param {string} [opts.username] optional explicit creds
- * @param {string} [opts.password]
- * @param {string} [opts.auth='Negotiate']
- * @param {boolean} [opts.useHttps=false]
- * @param {string} [opts.createdBy='admin']
+ * Supports both public package names and internal .nupkg packages.
  */
 async function deploy(opts) {
   const { packageName, packageVersion, source, chocoArgs, hostnames, username, password, auth = 'Negotiate', useHttps = false, createdBy = 'admin' } = opts;
@@ -31,14 +22,19 @@ async function deploy(opts) {
   const port = useHttps ? 5986 : 5985;
   const useSSL = useHttps ? '$true' : '$false';
 
+  // Detect internal package
+  const internalPkg = chocoPackageService.getPackage(packageName);
+  const isInternal = !!internalPkg;
+  const nupkgPath = internalPkg ? internalPkg.nupkg_path : null;
+
   const jobs = hostnames.map(async (hostname) => {
     const ip = await resolveHostname(hostname).catch(() => null);
     const hostList = hostnames.join(',');
     const row = db.prepare(`INSERT INTO choco_deployments (package_name, package_version, source, choco_args, hostnames, status, created_by) VALUES (?, ?, ?, ?, ?, 'pending', ?)`)
-      .run(packageName, packageVersion || null, source || null, chocoArgs || null, hostList, createdBy);
+      .run(packageName, packageVersion || null, source || (isInternal ? 'INTERNAL' : null), chocoArgs || null, hostList, createdBy);
     const deploymentId = row.lastInsertRowid;
 
-    runChocoJob(deploymentId, hostname, ip, packageName, packageVersion, source, chocoArgs, username, password, auth, port, useSSL).catch(err => {
+    runChocoJob(deploymentId, hostname, ip, packageName, packageVersion, source, chocoArgs, username, password, auth, port, useSSL, isInternal, nupkgPath).catch(err => {
       console.error(`[choco] ${hostname} fatal:`, err.message);
     });
 
@@ -48,7 +44,7 @@ async function deploy(opts) {
   return Promise.all(jobs);
 }
 
-async function runChocoJob(deploymentId, hostname, ip, packageName, packageVersion, source, chocoArgs, username, password, auth, port, useSSL) {
+async function runChocoJob(deploymentId, hostname, ip, packageName, packageVersion, source, chocoArgs, username, password, auth, port, useSSL, isInternal, nupkgPath) {
   const runId = crypto.randomBytes(8).toString('hex');
   const sessionDir = path.join(WORK_DIR, runId);
   fs.mkdirSync(sessionDir, { recursive: true });
@@ -71,9 +67,49 @@ $cred = New-Object System.Management.Automation.PSCredential('${escapedUsername}
     ? `$session = New-PSSession -ComputerName '${escapedHostname}' -Credential $cred -Authentication ${auth} -Port ${port} -UseSSL:${useSSL} -SessionOption $so`
     : `$session = New-PSSession -ComputerName '${escapedHostname}' -Port ${port} -UseSSL:${useSSL} -SessionOption $so`;
 
-  const versionArg = escapedVersion ? `--version '${escapedVersion}'` : '';
-  const sourceArg = escapedSource ? `--source '${escapedSource}'` : '';
-  const extraArgs = escapedArgs ? escapedArgs : '';
+  let remoteScript = '';
+  if (isInternal && nupkgPath) {
+    const remoteTemp = `C:\\Windows\\Temp\\admgr-choco-${runId}`;
+    const remoteNupkg = `${remoteTemp}\\${path.basename(nupkgPath)}`;
+    const escapedLocalPath = nupkgPath.replace(/'/g, "''");
+    const escapedRemoteNupkg = remoteNupkg.replace(/'/g, "''");
+    const escapedRemoteTemp = remoteTemp.replace(/'/g, "''");
+    remoteScript = `
+    New-Item -Path '${escapedRemoteTemp}' -ItemType Directory -Force | Out-Null
+    Copy-Item -Path '${escapedLocalPath}' -Destination '${escapedRemoteNupkg}' -ToSession $session -Force
+    $result = Invoke-Command -Session $session -ScriptBlock {
+      $nupkg = '${escapedRemoteNupkg}'
+      $feed = '${escapedRemoteTemp}'
+      # Ensure Chocolatey installed (offline bootstrap if needed)
+      $chocoPath = Get-Command choco.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+      if (-not $chocoPath) { $chocoPath = 'C:\\ProgramData\\chocolatey\\bin\\choco.exe' }
+      $choco = if (Test-Path $chocoPath) { $chocoPath } else { 'choco.exe' }
+      $installOutput = & $choco install '${escapedPackage}' -y --no-progress --force --source $feed ${escapedArgs ? ' ' + escapedArgs : ''} 2>&1 | Out-String
+      $exitCode = $LASTEXITCODE
+      $inventory = ''
+      if (Test-Path $chocoPath) { $inventory = & $choco list --local-only --limit-output 2>&1 | Out-String }
+      @{ exitCode = $exitCode; output = $installOutput; inventory = $inventory }
+    }
+    Remove-PSSession $session
+    $result | ConvertTo-Json -Compress -Depth 3 | Out-File -FilePath '${resultFile.replace(/'/g, "''")}' -Encoding utf8`;
+  } else {
+    const versionArg = escapedVersion ? `--version '${escapedVersion}'` : '';
+    const sourceArg = escapedSource ? `--source '${escapedSource}'` : '';
+    const extraArgs = escapedArgs ? escapedArgs : '';
+    remoteScript = `
+    $result = Invoke-Command -Session $session -ScriptBlock {
+      $chocoPath = Get-Command choco.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+      if (-not $chocoPath) { $chocoPath = 'C:\\ProgramData\\chocolatey\\bin\\choco.exe' }
+      $choco = if (Test-Path $chocoPath) { $chocoPath } else { 'choco.exe' }
+      $installOutput = & $choco install '${escapedPackage}' -y --no-progress --force ${versionArg} ${sourceArg} ${extraArgs} 2>&1 | Out-String
+      $exitCode = $LASTEXITCODE
+      $inventory = ''
+      if (Test-Path $chocoPath) { $inventory = & $choco list --local-only --limit-output 2>&1 | Out-String }
+      @{ exitCode = $exitCode; output = $installOutput; inventory = $inventory }
+    }
+    Remove-PSSession $session
+    $result | ConvertTo-Json -Compress -Depth 3 | Out-File -FilePath '${resultFile.replace(/'/g, "''")}' -Encoding utf8`;
+  }
 
   const deployScript = `
 $ErrorActionPreference = 'Stop'
@@ -81,26 +117,7 @@ try {
   ${credentialLine}
   $so = New-PSSessionOption -SkipCACheck -SkipCNCheck
   ${sessionLine}
-  $result = Invoke-Command -Session $session -ScriptBlock {
-    # Ensure Chocolatey is installed
-    $chocoPath = Get-Command choco.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-    if (-not $chocoPath) {
-      if (Test-Path 'C:\\ProgramData\\chocolatey\\bin\\choco.exe') {
-        $chocoPath = 'C:\\ProgramData\\chocolatey\\bin\\choco.exe'
-      } else {
-        $installOutput = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))" 2>&1 | Out-String
-        $chocoPath = 'C:\\ProgramData\\chocolatey\\bin\\choco.exe'
-      }
-    }
-    $choco = if ($chocoPath) { $chocoPath } else { 'choco.exe' }
-    $installOutput = & $choco install '${escapedPackage}' -y --no-progress --force ${versionArg} ${sourceArg} ${extraArgs} 2>&1 | Out-String
-    $exitCode = $LASTEXITCODE
-    # Get installed Chocolatey packages for inventory
-    $inventory = & $choco list --local-only --limit-output 2>&1 | Out-String
-    @{ exitCode = $exitCode; output = $installOutput; inventory = $inventory }
-  }
-  Remove-PSSession $session
-  $result | ConvertTo-Json -Compress -Depth 3 | Out-File -FilePath '${resultFile.replace(/'/g, "''")}' -Encoding utf8
+${remoteScript}
 } catch {
   @{ exitCode = 1; output = ''; error = $_.Exception.Message } | ConvertTo-Json -Compress | Out-File -FilePath '${resultFile.replace(/'/g, "''")}' -Encoding utf8
   throw

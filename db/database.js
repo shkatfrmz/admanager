@@ -215,6 +215,24 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_winrm_deployments_status ON winrm_deployments(status);
   CREATE INDEX IF NOT EXISTS idx_winrm_deployments_hostname ON winrm_deployments(hostname);
 
+  -- Chocolatey internal package repository
+  CREATE TABLE IF NOT EXISTS choco_packages (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    package_id          TEXT NOT NULL UNIQUE,
+    name                TEXT NOT NULL,
+    version             TEXT NOT NULL,
+    description         TEXT,
+    file_id             INTEGER REFERENCES deployment_files(id),
+    install_script      TEXT,
+    nupkg_path          TEXT,
+    status              TEXT DEFAULT 'pending',
+    built_at            TEXT,
+    created_at          TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_choco_packages_status ON choco_packages(status);
+  CREATE INDEX IF NOT EXISTS idx_choco_packages_pkgid ON choco_packages(package_id);
+
   -- Chocolatey deployment tracking
   CREATE TABLE IF NOT EXISTS choco_deployments (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,

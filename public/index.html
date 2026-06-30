@@ -1184,7 +1184,8 @@
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="openUploadModal()">+ Upload Package</button>
-          <button class="btn btn-primary" onclick="openWinRMModal()">⚡ WinRM Push</button>
+          <button class="btn btn-primary" onclick="openChocoPackageBuilder()">🏗️ Build Choco Package</button>
+          <button class="btn btn-primary" onclick="openWinRMModal()">⚡ Deploy Software</button>
           <button class="btn btn-warn" onclick="cleanupDuplicatePackages()">Clean Duplicates</button>
           <button class="btn btn-ghost btn-sm" onclick="loadEndpoints()">↻ Refresh</button>
         </div>
@@ -1209,6 +1210,10 @@
         <div class="dash-card" style="flex:1;padding:12px 16px;cursor:pointer" onclick="showWinRMDeployments()">
           <div style="font-size:20px;font-weight:700;color:var(--primary)" id="ep-pending-winrm">0</div>
           <div style="font-size:11px;color:var(--muted)">Pending WinRM</div>
+        </div>
+        <div class="dash-card" style="flex:1;padding:12px 16px;cursor:pointer" onclick="showChocoDeployments()">
+          <div style="font-size:20px;font-weight:700;color:var(--primary)" id="ep-pending-choco">0</div>
+          <div style="font-size:11px;color:var(--muted)">Pending Choco</div>
         </div>
       </div>
       <div id="endpoint-deploy-view" style="display:none">
@@ -1322,8 +1327,12 @@
         </div>
       </div>
       <div class="form-group" id="winrm-choco-name-wrap" style="display:none">
-        <label>Chocolatey Package Name</label>
-        <input type="text" id="winrm-choco-name" placeholder="7zip, notepadplusplus, googlechrome" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px" />
+        <label>Chocolatey Package Name / ID</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="winrm-choco-name" placeholder="7zip or my-internal-app" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:4px" />
+          <button class="btn btn-ghost btn-sm" onclick="refreshChocoPackageList()" title="Refresh internal packages">↻</button>
+        </div>
+        <div id="winrm-choco-pkg-list" style="margin-top:4px;font-size:11px;color:var(--muted)"></div>
       </div>
       <div class="form-group" id="winrm-choco-version-wrap" style="display:none">
         <label>Version (optional)</label>
@@ -1371,7 +1380,35 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-winrm-push')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitWinRMDeploy()">Push Deploy</button>
+      <button class="btn btn-primary" onclick="submitWinRMDeploy()">Deploy</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chocolatey Package Builder Modal -->
+<div class="modal-overlay" id="modal-choco-builder">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h3>Build Internal Chocolatey Package</h3>
+      <button class="modal-close" onclick="closeModal('modal-choco-builder')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Source Package</label>
+        <select id="choco-build-file" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Package ID</label><input type="text" id="choco-build-id" placeholder="my-custom-app" /></div>
+        <div class="form-group"><label>Version</label><input type="text" id="choco-build-version" placeholder="1.0.0" /></div>
+      </div>
+      <div class="form-group"><label>Display Name</label><input type="text" id="choco-build-name" placeholder="My Custom App" /></div>
+      <div class="form-group"><label>Description</label><input type="text" id="choco-build-desc" placeholder="Optional" /></div>
+      <div class="form-group"><label>Install Arguments (optional)</label><input type="text" id="choco-build-args" placeholder="/S, /qn, /VERYSILENT /NORESTART" /></div>
+      <div id="choco-build-status" style="font-size:12px;color:var(--muted);margin-top:4px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-choco-builder')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitChocoBuild()">Build Package</button>
     </div>
   </div>
 </div>
@@ -4022,9 +4059,64 @@ async function openWinRMModal(preSelectedHostname) {
   toggleWinRMMode();
   openModal('modal-winrm-push');
   try {
-    const pkgResp = await api('/api/endpoints/deployments/files');
+    const [pkgResp, chocoResp] = await Promise.all([
+      api('/api/endpoints/deployments/files'),
+      api('/api/endpoints/choco/packages')
+    ]);
     pkgSel.innerHTML = (pkgResp?.files||[]).map(f => `<option value="${f.id}">${f.name} (${(f.file_size/1024/1024).toFixed(1)} MB)</option>`).join('') || '<option value="">— No packages available —</option>';
-  } catch (e) { showToast('Error loading packages', 'error'); }
+    const chocoList = document.getElementById('winrm-choco-pkg-list');
+    const built = chocoResp?.packages || [];
+    chocoList.innerHTML = built.length ? `Internal packages: ${built.map(p => p.package_id).join(', ')}` : 'No internal packages built yet.';
+  } catch (e) { showToast('Error loading data', 'error'); }
+}
+
+async function refreshChocoPackageList() {
+  try {
+    const chocoResp = await api('/api/endpoints/choco/packages');
+    const chocoList = document.getElementById('winrm-choco-pkg-list');
+    const built = chocoResp?.packages || [];
+    chocoList.innerHTML = built.length ? `Internal packages: ${built.map(p => p.package_id).join(', ')}` : 'No internal packages built yet.';
+  } catch (e) { showToast('Error refreshing packages', 'error'); }
+}
+
+// ── CHOCOLATEY PACKAGE BUILDER ──────────────────────────────────────────
+async function openChocoPackageBuilder() {
+  closeModal('modal-choco-builder');
+  const sel = document.getElementById('choco-build-file');
+  sel.innerHTML = '<option>Loading...</option>';
+  document.getElementById('choco-build-status').textContent = '';
+  openModal('modal-choco-builder');
+  try {
+    const resp = await api('/api/endpoints/deployments/files');
+    sel.innerHTML = (resp?.files||[]).map(f => `<option value="${f.id}">${f.name} (${f.original_name})</option>`).join('') || '<option value="">— No packages available —</option>';
+  } catch (e) { showToast('Error loading files', 'error'); }
+}
+
+async function submitChocoBuild() {
+  const fileId = document.getElementById('choco-build-file').value;
+  const packageId = document.getElementById('choco-build-id').value.trim();
+  const version = document.getElementById('choco-build-version').value.trim() || '1.0.0';
+  const name = document.getElementById('choco-build-name').value.trim();
+  const desc = document.getElementById('choco-build-desc').value.trim();
+  const args = document.getElementById('choco-build-args').value.trim();
+  const statusEl = document.getElementById('choco-build-status');
+
+  if (!fileId) { showToast('Select a source package', 'error'); return; }
+  if (!packageId) { showToast('Enter a package ID', 'error'); return; }
+
+  statusEl.textContent = 'Building .nupkg...';
+  try {
+    const resp = await api('/api/endpoints/choco/packages/build', {
+      method: 'POST',
+      body: JSON.stringify({ file_id: parseInt(fileId), package_id: packageId, version, name, description: desc, install_args: args })
+    });
+    if (resp.success) {
+      showToast(`Built ${resp.package.package_id} v${resp.package.version}`, 'success');
+      closeModal('modal-choco-builder');
+    } else {
+      statusEl.textContent = resp.error || 'Build failed';
+    }
+  } catch (e) { statusEl.textContent = 'Build error: ' + e.message; }
 }
 
 function toggleWinRMMode() {
@@ -4155,14 +4247,16 @@ function renderWinRMDeployments() {
 }
 
 function closeWinRMView() {
-  if (winrmRefreshTimer) { clearInterval(winrmRefreshTimer); winrmRefreshTimer = null; }
-  document.getElementById('endpoint-main-view').style.display = '';
-  document.getElementById('endpoint-deploy-view').style.display = 'none';
-  document.getElementById('endpoint-winrm-view').style.display = 'none';
-  document.getElementById('endpoint-choco-view').style.display = 'none';
+    if (winrmRefreshTimer) { clearInterval(winrmRefreshTimer); winrmRefreshTimer = null; }
+    document.getElementById('endpoint-main-view').style.display = '';
+    document.getElementById('endpoint-deploy-view').style.display = 'none';
+    document.getElementById('endpoint-winrm-view').style.display = 'none';
+    document.getElementById('endpoint-choco-view').style.display = 'none';
 }
 
 // ── CHOCOLATEY DEPLOYMENT LIST VIEW ─────────────────────────────────────
+let allChocoDeployments = [];
+let chocoRefreshTimer = null;
 let allChocoDeployments = [];
 let chocoRefreshTimer = null;
 
@@ -4210,7 +4304,7 @@ function renderChocoDeployments() {
                 } catch (_) { resultText = d.output_log.slice(0, 40); resultTitle = d.output_log; }
               }
               return `<tr>
-                <td>${d.package_name}${d.package_version ? ' <span style="color:var(--muted);font-size:11px">v' + d.package_version + '</span>' : ''}</td>
+                <td>${d.package_name}${d.package_version ? ' <span style="color:var(--muted);font-size:11px">v' + d.package_version + '</span>' : ''}${d.source === 'INTERNAL' ? ' <span style="color:var(--success);font-size:10px">[INTERNAL]</span>' : ''}</td>
                 <td>${d.hostnames}</td>
                 <td><span class="badge ${statusClass}">${d.status}</span></td>
                 <td style="font-size:11px;color:var(--muted)">${d.started_at ? new Date(d.started_at+'Z').toLocaleString() : '—'}</td>

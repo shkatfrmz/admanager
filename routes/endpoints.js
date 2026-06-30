@@ -9,6 +9,7 @@ const authMiddleware = require('../middleware/auth');
 const { requirePermission } = require('../middleware/auth');
 const winrmService = require('../services/winrm.service');
 const chocoService = require('../services/choco.service');
+const chocoPackageService = require('../services/choco-package.service');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'packages');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -355,6 +356,38 @@ router.get('/winrm/deployments/:id', requirePermission('endpoints:read'), (req, 
     const d = winrmService.getWinRMDeployment(req.params.id);
     if (!d) return res.status(404).json({ error: 'WinRM deployment not found' });
     res.json({ success: true, deployment: d });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHOCOLATEY PACKAGE BUILDER ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── POST /api/endpoints/choco/packages/build ──────────────────────────────
+router.post('/choco/packages/build', requirePermission('endpoints:manage'), async (req, res) => {
+  try {
+    const { file_id, package_id, name, version, description, install_args } = req.body;
+    if (!file_id) return res.status(400).json({ error: 'file_id is required' });
+    const result = await chocoPackageService.buildPackage({
+      fileId: file_id,
+      packageId,
+      name,
+      version,
+      description,
+      installArgs: install_args
+    });
+    res.json({ success: true, package: result });
+  } catch (err) {
+    console.error('[choco/packages/build]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/endpoints/choco/packages ───────────────────────────────────
+router.get('/choco/packages', requirePermission('endpoints:read'), (req, res) => {
+  try {
+    const packages = chocoPackageService.listPackages();
+    res.json({ success: true, count: packages.length, packages });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

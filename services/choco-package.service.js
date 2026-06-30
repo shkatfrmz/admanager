@@ -82,7 +82,8 @@ if (-not $toolsDir) { $toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Def
 $installer = "${installerPath}"
 $log = "$env:TEMP\\admgr-install.log"
 $procArgs = @('/i', $installer, ${JSON.stringify(args)}, '/l*v', $log)
-Start-Process -FilePath "msiexec.exe" -ArgumentList $procArgs -Wait -NoNewWindow
+$proc = Start-Process -FilePath "msiexec.exe" -ArgumentList $procArgs -Wait -PassThru -NoNewWindow
+exit $proc.ExitCode
 `;
   }
   return `
@@ -91,7 +92,8 @@ $toolsDir = $env:ADMGR_TOOLS_DIR
 if (-not $toolsDir) { $toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Definition }
 $installer = "${installerPath}"
 $procArgs = @(${JSON.stringify(args)})
-Start-Process -FilePath $installer -ArgumentList $procArgs -Wait -NoNewWindow
+$proc = Start-Process -FilePath $installer -ArgumentList $procArgs -Wait -PassThru -NoNewWindow
+exit $proc.ExitCode
 `;
 }
 

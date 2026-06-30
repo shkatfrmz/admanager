@@ -1219,6 +1219,10 @@
         <button class="btn btn-ghost" onclick="closeWinRMView()" style="margin-bottom:8px">← Back to Endpoints</button>
         <div id="winrm-content"></div>
       </div>
+      <div id="endpoint-choco-view" style="display:none">
+        <button class="btn btn-ghost" onclick="closeChocoView()" style="margin-bottom:8px">← Back to Endpoints</button>
+        <div id="choco-content"></div>
+      </div>
       <div id="endpoint-main-view">
         <div class="section-card">
           <div class="table-toolbar">
@@ -1305,6 +1309,33 @@
       <div class="form-group">
         <label>Target Hostnames (one per line)</label>
         <textarea id="winrm-hostnames" rows="4" placeholder="DC&#10;WINCLIENT10&#10;FILESERVER" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px;font-family:inherit"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Deployment Mode</label>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="winrm-mode" value="local" checked onchange="toggleWinRMMode()" /> Local package file
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="winrm-mode" value="chocolatey" onchange="toggleWinRMMode()" /> Chocolatey package
+          </label>
+        </div>
+      </div>
+      <div class="form-group" id="winrm-choco-name-wrap" style="display:none">
+        <label>Chocolatey Package Name</label>
+        <input type="text" id="winrm-choco-name" placeholder="7zip, notepadplusplus, googlechrome" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px" />
+      </div>
+      <div class="form-group" id="winrm-choco-version-wrap" style="display:none">
+        <label>Version (optional)</label>
+        <input type="text" id="winrm-choco-version" placeholder="24.09" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px" />
+      </div>
+      <div class="form-group" id="winrm-choco-source-wrap" style="display:none">
+        <label>Source (optional)</label>
+        <input type="text" id="winrm-choco-source" placeholder="https://chocolatey.org/api/v2/ or \\server\choco-feed" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px" />
+      </div>
+      <div class="form-group" id="winrm-choco-args-wrap" style="display:none">
+        <label>Extra choco Arguments (optional)</label>
+        <input type="text" id="winrm-choco-args" placeholder="--force --limit-output" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px" />
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -3986,6 +4017,9 @@ async function openWinRMModal(preSelectedHostname) {
   pkgSel.innerHTML = '<option>Loading packages...</option>';
   hostEl.value = preSelectedHostname ? preSelectedHostname : '';
   statusEl.textContent = '';
+  // Reset mode to local
+  document.querySelector('input[name="winrm-mode"][value="local"]').checked = true;
+  toggleWinRMMode();
   openModal('modal-winrm-push');
   try {
     const pkgResp = await api('/api/endpoints/deployments/files');
@@ -3993,8 +4027,17 @@ async function openWinRMModal(preSelectedHostname) {
   } catch (e) { showToast('Error loading packages', 'error'); }
 }
 
+function toggleWinRMMode() {
+  const mode = document.querySelector('input[name="winrm-mode"]:checked')?.value || 'local';
+  const isChoco = mode === 'chocolatey';
+  document.getElementById('winrm-pkg-select').closest('.form-group').style.display = isChoco ? 'none' : '';
+  ['winrm-choco-name-wrap','winrm-choco-version-wrap','winrm-choco-source-wrap','winrm-choco-args-wrap'].forEach(id => {
+    document.getElementById(id).style.display = isChoco ? '' : 'none';
+  });
+}
+
 async function submitWinRMDeploy() {
-  const fileId = document.getElementById('winrm-pkg-select').value;
+  const mode = document.querySelector('input[name="winrm-mode"]:checked')?.value || 'local';
   const hostnames = document.getElementById('winrm-hostnames').value.split('\n').map(h => h.trim()).filter(Boolean);
   const username = document.getElementById('winrm-username').value.trim();
   const password = document.getElementById('winrm-password').value;
@@ -4002,19 +4045,38 @@ async function submitWinRMDeploy() {
   const useHttps = document.getElementById('winrm-https').checked;
   const statusEl = document.getElementById('winrm-status');
 
-  if (!fileId) { showToast('Select a package', 'error'); return; }
   if (!hostnames.length) { showToast('Enter at least one target hostname', 'error'); return; }
 
-  statusEl.textContent = 'Queueing WinRM deployment...';
+  let payload;
+  let url;
+  if (mode === 'chocolatey') {
+    const packageName = document.getElementById('winrm-choco-name').value.trim();
+    if (!packageName) { showToast('Enter a Chocolatey package name', 'error'); return; }
+    payload = {
+      package_name: packageName,
+      package_version: document.getElementById('winrm-choco-version').value.trim() || undefined,
+      source: document.getElementById('winrm-choco-source').value.trim() || undefined,
+      choco_args: document.getElementById('winrm-choco-args').value.trim() || undefined,
+      hostnames, username, password, auth, use_https: useHttps
+    };
+    url = '/api/endpoints/choco/deploy';
+  } else {
+    const fileId = document.getElementById('winrm-pkg-select').value;
+    if (!fileId) { showToast('Select a package', 'error'); return; }
+    payload = { file_id: parseInt(fileId), hostnames, username, password, auth, use_https: useHttps };
+    url = '/api/endpoints/winrm/deploy';
+  }
+
+  statusEl.textContent = 'Queueing deployment...';
   try {
-    const resp = await api('/api/endpoints/winrm/deploy', {
+    const resp = await api(url, {
       method: 'POST',
-      body: JSON.stringify({ file_id: parseInt(fileId), hostnames, username, password, auth, use_https: useHttps })
+      body: JSON.stringify(payload)
     });
     if (resp.success) {
-      showToast(`WinRM deployment queued for ${resp.jobs.length} host(s)`, 'success');
+      showToast(mode === 'chocolatey' ? `Chocolatey deployment queued for ${resp.jobs.length} host(s)` : `WinRM deployment queued for ${resp.jobs.length} host(s)`, 'success');
       closeModal('modal-winrm-push');
-      showWinRMDeployments();
+      if (mode === 'chocolatey') showChocoDeployments(); else showWinRMDeployments();
     } else {
       statusEl.textContent = resp.error || 'Deploy failed';
       showToast(resp.error || 'Deploy failed', 'error');
@@ -4097,6 +4159,77 @@ function closeWinRMView() {
   document.getElementById('endpoint-main-view').style.display = '';
   document.getElementById('endpoint-deploy-view').style.display = 'none';
   document.getElementById('endpoint-winrm-view').style.display = 'none';
+  document.getElementById('endpoint-choco-view').style.display = 'none';
+}
+
+// ── CHOCOLATEY DEPLOYMENT LIST VIEW ─────────────────────────────────────
+let allChocoDeployments = [];
+let chocoRefreshTimer = null;
+
+async function showChocoDeployments() {
+  document.getElementById('endpoint-main-view').style.display = 'none';
+  document.getElementById('endpoint-deploy-view').style.display = 'none';
+  document.getElementById('endpoint-winrm-view').style.display = 'none';
+  document.getElementById('endpoint-choco-view').style.display = '';
+  const content = document.getElementById('choco-content');
+  content.innerHTML = '<div class="loading"><span class="spinner"></span>Loading Chocolatey deployments...</div>';
+  await fetchChocoDeployments();
+  if (chocoRefreshTimer) clearInterval(chocoRefreshTimer);
+  chocoRefreshTimer = setInterval(fetchChocoDeployments, 8000);
+}
+
+async function fetchChocoDeployments() {
+  try {
+    const resp = await api('/api/endpoints/choco/deployments');
+    allChocoDeployments = resp?.deployments || [];
+    renderChocoDeployments();
+    const active = allChocoDeployments.filter(d => d.status === 'pending' || d.status === 'in_progress');
+    if (active.length === 0 && chocoRefreshTimer) { clearInterval(chocoRefreshTimer); chocoRefreshTimer = null; }
+  } catch (e) { /* ignore silent refresh errors */ }
+}
+
+function renderChocoDeployments() {
+  const content = document.getElementById('choco-content');
+  if (!allChocoDeployments.length) { content.innerHTML = '<div class="empty-state"><p>No Chocolatey deployments yet.</p></div>'; return; }
+  content.innerHTML = `
+    <div class="section-card">
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Package</th><th>Hostnames</th><th>Status</th><th>Started</th><th>Completed</th><th>Result</th></tr></thead>
+          <tbody>
+            ${allChocoDeployments.map(d => {
+              const statusClass = d.status === 'success' ? 'badge-success' : (d.status === 'failed' ? 'badge-danger' : (d.status === 'in_progress' ? 'badge-warning' : ''));
+              let resultText = '—';
+              let resultTitle = '';
+              if (d.error_message) { resultText = 'Error: ' + d.error_message.slice(0, 30); resultTitle = d.error_message; }
+              else if (d.output_log) {
+                try {
+                  const log = JSON.parse(d.output_log);
+                  resultText = 'Exit ' + (log.exitCode ?? '?') + ': ' + (log.output || '').slice(0, 40);
+                  resultTitle = JSON.stringify(log, null, 2);
+                } catch (_) { resultText = d.output_log.slice(0, 40); resultTitle = d.output_log; }
+              }
+              return `<tr>
+                <td>${d.package_name}${d.package_version ? ' <span style="color:var(--muted);font-size:11px">v' + d.package_version + '</span>' : ''}</td>
+                <td>${d.hostnames}</td>
+                <td><span class="badge ${statusClass}">${d.status}</span></td>
+                <td style="font-size:11px;color:var(--muted)">${d.started_at ? new Date(d.started_at+'Z').toLocaleString() : '—'}</td>
+                <td style="font-size:11px;color:var(--muted)">${d.completed_at ? new Date(d.completed_at+'Z').toLocaleString() : '—'}</td>
+                <td style="font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis" title="${resultTitle.replace(/"/g, '&quot;')}">${resultText}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function closeChocoView() {
+  if (chocoRefreshTimer) { clearInterval(chocoRefreshTimer); chocoRefreshTimer = null; }
+  document.getElementById('endpoint-main-view').style.display = '';
+  document.getElementById('endpoint-deploy-view').style.display = 'none';
+  document.getElementById('endpoint-winrm-view').style.display = 'none';
+  document.getElementById('endpoint-choco-view').style.display = 'none';
 }
 
 // ── DEPLOY ──────────────────────────────────────────────────────────────

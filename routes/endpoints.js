@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const authMiddleware = require('../middleware/auth');
 const { requirePermission } = require('../middleware/auth');
 const winrmService = require('../services/winrm.service');
+const chocoService = require('../services/choco.service');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'packages');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -353,6 +354,56 @@ router.get('/winrm/deployments/:id', requirePermission('endpoints:read'), (req, 
   try {
     const d = winrmService.getWinRMDeployment(req.params.id);
     if (!d) return res.status(404).json({ error: 'WinRM deployment not found' });
+    res.json({ success: true, deployment: d });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHOCOLATEY DEPLOYMENT ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── POST /api/endpoints/choco/deploy ───────────────────────────────────────
+router.post('/choco/deploy', requirePermission('endpoints:deploy'), async (req, res) => {
+  try {
+    const { package_name, package_version, source, choco_args, hostnames, username, password, auth, use_https } = req.body;
+    if (!package_name) return res.status(400).json({ error: 'package_name is required' });
+    if (!hostnames || !Array.isArray(hostnames) || hostnames.length === 0)
+      return res.status(400).json({ error: 'hostnames[] is required' });
+
+    const jobs = await chocoService.deploy({
+      packageName: package_name,
+      packageVersion: package_version,
+      source,
+      chocoArgs,
+      hostnames,
+      username,
+      password,
+      auth: auth || 'Negotiate',
+      useHttps: !!use_https,
+      createdBy: req.user?.username || 'admin'
+    });
+
+    res.json({ success: true, message: `Chocolatey deployment queued for ${jobs.length} host(s)`, jobs });
+  } catch (err) {
+    console.error('[choco/deploy]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/endpoints/choco/deployments ──────────────────────────────────
+router.get('/choco/deployments', requirePermission('endpoints:read'), (req, res) => {
+  try {
+    const { status, package_name } = req.query;
+    const deployments = chocoService.listChocoDeployments(status, package_name);
+    res.json({ success: true, count: deployments.length, deployments });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── GET /api/endpoints/choco/deployments/:id ──────────────────────────────
+router.get('/choco/deployments/:id', requirePermission('endpoints:read'), (req, res) => {
+  try {
+    const d = chocoService.getChocoDeployment(req.params.id);
+    if (!d) return res.status(404).json({ error: 'Chocolatey deployment not found' });
     res.json({ success: true, deployment: d });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

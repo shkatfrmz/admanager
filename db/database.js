@@ -214,6 +214,27 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_winrm_deployments_status ON winrm_deployments(status);
   CREATE INDEX IF NOT EXISTS idx_winrm_deployments_hostname ON winrm_deployments(hostname);
+
+  -- Chocolatey deployment tracking
+  CREATE TABLE IF NOT EXISTS choco_deployments (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    package_name        TEXT NOT NULL,
+    package_version     TEXT,
+    source              TEXT,
+    choco_args          TEXT,
+    hostnames           TEXT NOT NULL,
+    status              TEXT DEFAULT 'pending',
+    attempt_count       INTEGER DEFAULT 0,
+    error_message       TEXT,
+    output_log          TEXT,
+    started_at          TEXT,
+    completed_at        TEXT,
+    created_at          TEXT DEFAULT (datetime('now')),
+    created_by          TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_choco_deployments_status ON choco_deployments(status);
+  CREATE INDEX IF NOT EXISTS idx_choco_deployments_pkg ON choco_deployments(package_name);
 `);
 
 module.exports = db;

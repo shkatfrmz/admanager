@@ -4039,8 +4039,13 @@ async function showWinRMDeployments() {
 
 async function fetchWinRMDeployments() {
   try {
-    const resp = await api('/api/endpoints/winrm/deployments');
-    allWinRMDeployments = resp?.deployments || [];
+    const [depResp, fileResp] = await Promise.all([
+      api('/api/endpoints/winrm/deployments'),
+      api('/api/endpoints/deployments/files')
+    ]);
+    const filesById = {};
+    (fileResp?.files || []).forEach(f => filesById[f.id] = f);
+    allWinRMDeployments = (depResp?.deployments || []).map(d => ({ ...d, file: filesById[d.file_id] }));
     renderWinRMDeployments();
     const active = allWinRMDeployments.filter(d => d.status === 'pending' || d.status === 'in_progress');
     if (active.length === 0 && winrmRefreshTimer) { clearInterval(winrmRefreshTimer); winrmRefreshTimer = null; }
@@ -4068,8 +4073,9 @@ function renderWinRMDeployments() {
                   resultTitle = JSON.stringify(log, null, 2);
                 } catch (_) { resultText = d.output_log.slice(0, 40); resultTitle = d.output_log; }
               }
+              const fileName = d.file ? `${d.file.name} (${d.file.original_name})` : (d.file_id || '—');
               return `<tr>
-                <td>${d.file_id || '—'}</td>
+                <td>${fileName}</td>
                 <td>${d.hostname}${d.ip_address ? ' <span style="color:var(--muted);font-size:11px">(' + d.ip_address + ')</span>' : ''}</td>
                 <td><span class="badge ${statusClass}">${d.status}</span></td>
                 <td style="font-size:11px;color:var(--muted)">${d.started_at ? new Date(d.started_at+'Z').toLocaleString() : '—'}</td>

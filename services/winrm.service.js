@@ -110,7 +110,7 @@ try {
 
   try {
     db.prepare("UPDATE winrm_deployments SET status='in_progress', started_at=datetime('now'), attempt_count=attempt_count+1 WHERE id=?").run(deploymentId);
-    await runPowerShell(deployScript);
+    await runPowerShell(deployScript, 600000);
 
     let result = { exitCode: 1, output: '', error: 'No result captured' };
     let rawResult = '';
@@ -148,9 +148,20 @@ function buildInstallerCommand(ext, remotePathVar, originalName, customArgs) {
     const exeArgs = customArgs || '/S';
     return `
     $result = @{ exitCode = 0; output = ''; log = '' }
-    $proc = Start-Process -FilePath "${rp}" -ArgumentList '${exeArgs.replace(/'/g, "''")}' -Wait -PassThru -NoNewWindow
-    $result.exitCode = $proc.ExitCode
-    $result.output = 'EXE installer executed'
+    $proc = Start-Process -FilePath "${rp}" -ArgumentList '${exeArgs.replace(/'/g, "''")}' -PassThru -NoNewWindow
+    $timeout = 300  # 5 minutes
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    while (!$proc.HasExited -and $sw.Elapsed.TotalSeconds -lt $timeout) {
+        Start-Sleep -Milliseconds 500
+    }
+    if (!$proc.HasExited) {
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        $result.output = 'EXE installer timed out after 5 minutes'
+        $result.exitCode = 258  # WAIT_TIMEOUT
+    } else {
+        $result.exitCode = $proc.ExitCode
+        $result.output = 'EXE installer executed'
+    }
     $result.log = (Get-Content -Path 'C:\\Windows\\Temp\\admgr-install.log' -Raw -ErrorAction SilentlyContinue)`;
   }
   if (ext === '.ps1') {
@@ -170,16 +181,23 @@ function buildInstallerCommand(ext, remotePathVar, originalName, customArgs) {
     $result = @{ exitCode = 0; output = "File copied to ${rp}. Unknown extension; no install command configured." }`;
 }
 
-function runPowerShell(script) {
+function runPowerShell(script, timeoutMs = 600000) {
   return new Promise((resolve, reject) => {
     const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script];
     const ps = spawn('powershell.exe', args, { windowsHide: true });
     let stdout = '';
     let stderr = '';
+    let killed = false;
+    const timer = setTimeout(() => {
+      killed = true;
+      try { ps.kill('SIGTERM'); } catch (_) {}
+      setTimeout(() => { try { ps.kill('SIGKILL'); } catch (_) {} }, 5000);
+    }, timeoutMs);
     ps.stdout.on('data', d => stdout += d.toString());
     ps.stderr.on('data', d => stderr += d.toString());
     ps.on('close', code => {
-      if (code !== 0) {
+      clearTimeout(timer);
+      if (code !== 0 && !killed) {
         const err = new Error(stderr || stdout || `PowerShell exited with ${code}`);
         err.stdout = stdout;
         err.stderr = stderr;

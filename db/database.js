@@ -180,6 +180,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
   CREATE INDEX IF NOT EXISTS idx_endpoints_status ON endpoints(status);
 
+  -- Migration: add install_args to deployment_files if missing
+  ALTER TABLE deployment_files ADD COLUMN install_args TEXT;
+
   -- WinRM deployment tracking
   CREATE TABLE IF NOT EXISTS winrm_deployments (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,

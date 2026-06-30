@@ -82,15 +82,23 @@ $cred = New-Object System.Management.Automation.PSCredential('${escapedUsername}
     $result = Invoke-Command -Session $session -ScriptBlock {
       $nupkg = '${escapedRemoteNupkg}'
       $feed = '${escapedRemoteTemp}'
-      # Ensure Chocolatey installed (offline bootstrap if needed)
       $chocoPath = Get-Command choco.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
       if (-not $chocoPath) { $chocoPath = 'C:\\ProgramData\\chocolatey\\bin\\choco.exe' }
-      $choco = if (Test-Path $chocoPath) { $chocoPath } else { 'choco.exe' }
-      $installOutput = & $choco install '${escapedPackage}' -y --no-progress --force --source $feed ${escapedArgs ? ' ' + escapedArgs : ''} 2>&1 | Out-String
-      $exitCode = $LASTEXITCODE
-      $inventory = ''
-      if (Test-Path $chocoPath) { $inventory = & $choco list --local-only --limit-output 2>&1 | Out-String }
-      @{ exitCode = $exitCode; output = $installOutput; inventory = $inventory }
+      if (Test-Path $chocoPath) {
+        $choco = $chocoPath
+        $installOutput = & $choco install '${escapedPackage}' -y --no-progress --force --source $feed ${escapedArgs ? ' ' + escapedArgs : ''} 2>&1 | Out-String
+        $exitCode = $LASTEXITCODE
+        $inventory = & $choco list --local-only --limit-output 2>&1 | Out-String
+        @{ exitCode = $exitCode; output = $installOutput; inventory = $inventory }
+      } else {
+        # Chocolatey not installed on target — extract .nupkg and run embedded install script
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($nupkg, $feed)
+        $installScript = Join-Path $feed 'tools\\chocolateyinstall.ps1'
+        $installOutput = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installScript 2>&1 | Out-String
+        $exitCode = $LASTEXITCODE
+        @{ exitCode = $exitCode; output = $installOutput; inventory = '' }
+      }
     }
     Remove-PSSession $session
     $result | ConvertTo-Json -Compress -Depth 3 | Out-File -FilePath '${resultFile.replace(/'/g, "''")}' -Encoding utf8`;

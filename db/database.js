@@ -159,6 +159,7 @@ db.exec(`
     stored_path           TEXT NOT NULL,
     file_size              INTEGER,
     file_type              TEXT,
+    install_args           TEXT,
     created_at             TEXT DEFAULT (datetime('now'))
   );
 

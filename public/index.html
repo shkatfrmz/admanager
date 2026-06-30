@@ -1253,6 +1253,7 @@
       <div class="form-group"><label>Display Name</label><input type="text" id="pkg-name" placeholder="Google Chrome 120" /></div>
       <div class="form-group"><label>Description</label><input type="text" id="pkg-desc" placeholder="Optional description" /></div>
       <div class="form-group"><label>File (.msi, .exe, .bat, .ps1)</label><input type="file" id="pkg-file" /></div>
+      <div class="form-group"><label>Install Arguments (optional)</label><input type="text" id="pkg-install-args" placeholder="/S for NSIS, /qn for MSI, /VERYSILENT /NORESTART for Inno Setup" /></div>
       <div id="pkg-upload-status" style="font-size:12px;color:var(--muted);margin-top:4px"></div>
     </div>
     <div class="modal-footer">
@@ -3939,6 +3940,7 @@ function openUploadModal() {
 async function submitUploadPackage() {
   const name = document.getElementById('pkg-name').value.trim();
   const desc = document.getElementById('pkg-desc').value.trim();
+  const installArgs = document.getElementById('pkg-install-args').value.trim();
   const fileInput = document.getElementById('pkg-file');
   if (!name) { showToast('Enter a package name', 'error'); return; }
   if (!fileInput.files.length) { showToast('Select a file to upload', 'error'); return; }
@@ -3947,6 +3949,7 @@ async function submitUploadPackage() {
   const fd = new FormData();
   fd.append('name', name);
   fd.append('description', desc);
+  fd.append('install_args', installArgs);
   fd.append('file', fileInput.files[0]);
   try {
     const resp = await fetch('/api/endpoints/deployments/upload', {

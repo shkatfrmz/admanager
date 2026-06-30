@@ -31,6 +31,7 @@ async function deploy(opts) {
   const localFilePath = path.join(UPLOAD_DIR, file.stored_path);
   if (!fs.existsSync(localFilePath)) throw new Error('Deployment file missing on disk');
 
+  const installArgs = file.install_args || null;
   const port = useHttps ? 5986 : 5985;
   const useSSL = useHttps ? '$true' : '$false';
 
@@ -67,7 +68,7 @@ async function runWinRMJob(deploymentId, hostname, ip, localFilePath, originalNa
   const remoteTemp = `C:\\Windows\\Temp\\admgr-${runId}`;
   const remoteResultFile = `${remoteTemp}\\admgr-result.json`;
   const ext = path.extname(originalName).toLowerCase();
-  const installerLogic = buildInstallerCommand(ext, `$remotePath`, originalName);
+  const installerLogic = buildInstallerCommand(ext, `$remotePath`, originalName, installArgs);
 
   // Single PowerShell invocation: build credential in-memory, deploy, copy result back.
   const credentialLine = hasCreds
@@ -133,20 +134,21 @@ try {
   }
 }
 
-function buildInstallerCommand(ext, remotePathVar, originalName) {
+function buildInstallerCommand(ext, remotePathVar, originalName, customArgs) {
   const rp = remotePathVar; // $remotePath
   if (ext === '.msi') {
+    const msiArgs = customArgs || '/qn /norestart /l*v "C:\\Windows\\Temp\\admgr-install.log"';
     return `
     $result = @{ exitCode = 0; output = ''; log = '' }
-    $result.output = & msiexec.exe /i "${rp}" /qn /norestart /l*v "C:\\Windows\\Temp\\admgr-install.log" 2>&1 | Out-String
+    $result.output = & msiexec.exe /i "${rp}" ${msiArgs} 2>&1 | Out-String
     $result.exitCode = $LASTEXITCODE
     $result.log = (Get-Content -Path 'C:\\Windows\\Temp\\admgr-install.log' -Raw -ErrorAction SilentlyContinue)`;
   }
   if (ext === '.exe') {
+    const exeArgs = customArgs || '/S /VERYSILENT /NORESTART /SP- /SUPPRESSMSGBOXES /LOG="C:\\Windows\\Temp\\admgr-install.log"';
     return `
     $result = @{ exitCode = 0; output = ''; log = '' }
-    $args = '/S', '/VERYSILENT', '/NORESTART', '/SP-', '/SUPPRESSMSGBOXES', '/LOG="C:\\Windows\\Temp\\admgr-install.log"'
-    $proc = Start-Process -FilePath "${rp}" -ArgumentList $args -Wait -PassThru -NoNewWindow
+    $proc = Start-Process -FilePath "${rp}" -ArgumentList '${exeArgs.replace(/'/g, "''")}' -Wait -PassThru -NoNewWindow
     $result.exitCode = $proc.ExitCode
     $result.output = 'EXE installer executed'
     $result.log = (Get-Content -Path 'C:\\Windows\\Temp\\admgr-install.log' -Raw -ErrorAction SilentlyContinue)`;

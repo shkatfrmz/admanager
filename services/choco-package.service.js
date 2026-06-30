@@ -77,19 +77,21 @@ function buildInstallScript(ext, originalName, args) {
   if (ext === '.msi') {
     return `
 $ErrorActionPreference = 'Stop'
-$toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$toolsDir = $env:ADMGR_TOOLS_DIR
+if (-not $toolsDir) { $toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Definition }
 $installer = "${installerPath}"
-$log = "$env:TEMP\\choco-install.log"
-$args = @('/i', $installer, ${JSON.stringify(args)}, '/l*v', $log)
-Start-Process -FilePath "msiexec.exe" -ArgumentList $args -Wait -NoNewWindow
+$log = "$env:TEMP\\admgr-install.log"
+$procArgs = @('/i', $installer, ${JSON.stringify(args)}, '/l*v', $log)
+Start-Process -FilePath "msiexec.exe" -ArgumentList $procArgs -Wait -NoNewWindow
 `;
   }
   return `
 $ErrorActionPreference = 'Stop'
-$toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$toolsDir = $env:ADMGR_TOOLS_DIR
+if (-not $toolsDir) { $toolsDir = Split-Path -Parent $MyInvocation.MyCommand.Definition }
 $installer = "${installerPath}"
-$args = @(${JSON.stringify(args)})
-Start-Process -FilePath $installer -ArgumentList $args -Wait -NoNewWindow
+$procArgs = @(${JSON.stringify(args)})
+Start-Process -FilePath $installer -ArgumentList $procArgs -Wait -NoNewWindow
 `;
 }
 

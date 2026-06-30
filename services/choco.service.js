@@ -91,11 +91,11 @@ $cred = New-Object System.Management.Automation.PSCredential('${escapedUsername}
         $inventory = & $choco list --local-only --limit-output 2>&1 | Out-String
         @{ exitCode = $exitCode; output = $installOutput; inventory = $inventory }
       } else {
-        # Chocolatey not installed on target — extract .nupkg and run embedded install script
+        # Chocolatey not installed on target — extract .nupkg and run embedded install script inline
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [System.IO.Compression.ZipFile]::ExtractToDirectory($nupkg, $feed)
         $installScript = Join-Path $feed 'tools\\chocolateyinstall.ps1'
-        $installOutput = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installScript 2>&1 | Out-String
+        $installOutput = Invoke-Expression (Get-Content -Path $installScript -Raw) 2>&1 | Out-String
         $exitCode = $LASTEXITCODE
         @{ exitCode = $exitCode; output = $installOutput; inventory = '' }
       }

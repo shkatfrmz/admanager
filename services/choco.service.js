@@ -82,10 +82,21 @@ try {
   $so = New-PSSessionOption -SkipCACheck -SkipCNCheck
   ${sessionLine}
   $result = Invoke-Command -Session $session -ScriptBlock {
-    $installOutput = & choco.exe install '${escapedPackage}' -y --no-progress --force ${versionArg} ${sourceArg} ${extraArgs} 2>&1 | Out-String
+    # Ensure Chocolatey is installed
+    $chocoPath = Get-Command choco.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+    if (-not $chocoPath) {
+      if (Test-Path 'C:\\ProgramData\\chocolatey\\bin\\choco.exe') {
+        $chocoPath = 'C:\\ProgramData\\chocolatey\\bin\\choco.exe'
+      } else {
+        $installOutput = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))" 2>&1 | Out-String
+        $chocoPath = 'C:\\ProgramData\\chocolatey\\bin\\choco.exe'
+      }
+    }
+    $choco = if ($chocoPath) { $chocoPath } else { 'choco.exe' }
+    $installOutput = & $choco install '${escapedPackage}' -y --no-progress --force ${versionArg} ${sourceArg} ${extraArgs} 2>&1 | Out-String
     $exitCode = $LASTEXITCODE
     # Get installed Chocolatey packages for inventory
-    $inventory = & choco.exe list --local-only --limit-output 2>&1 | Out-String
+    $inventory = & $choco list --local-only --limit-output 2>&1 | Out-String
     @{ exitCode = $exitCode; output = $installOutput; inventory = $inventory }
   }
   Remove-PSSession $session

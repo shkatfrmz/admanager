@@ -7,6 +7,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const authMiddleware = require('../middleware/auth');
 const { requirePermission } = require('../middleware/auth');
+const winrmService = require('../services/winrm.service');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'packages');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -294,4 +295,59 @@ router.post('/deployments/:id/cancel', requirePermission('endpoints:deploy'), (r
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// WINRM PUSH DEPLOYMENT ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── POST /api/winrm/deploy ────────────────────────────────────────────────
+router.post('/winrm/deploy', requirePermission('endpoints:deploy'), async (req, res) => {
+  try {
+    const { file_id, hostnames, username, password, auth, use_https } = req.body;
+    if (!file_id) return res.status(400).json({ error: 'file_id is required' });
+    if (!hostnames || !Array.isArray(hostnames) || hostnames.length === 0)
+      return res.status(400).json({ error: 'hostnames[] is required' });
+    // Allow empty username/password to use the server's current Windows identity (Kerberos/Negotiate)
+    if ((username || password) && !(username && password))
+      return res.status(400).json({ error: 'Provide both username and password, or leave both blank to use server identity' });
+
+    const file = db.prepare('SELECT id FROM deployment_files WHERE id = ?').get(file_id);
+    if (!file) return res.status(404).json({ error: 'Deployment file not found' });
+
+    const jobs = await winrmService.deploy({
+      fileId: file_id,
+      hostnames,
+      username,
+      password,
+      auth: auth || 'Negotiate',
+      useHttps: !!use_https,
+      createdBy: req.user?.username || 'admin'
+    });
+
+    res.json({ success: true, message: `WinRM deployment queued for ${jobs.length} host(s)`, jobs });
+  } catch (err) {
+    console.error('[winrm/deploy]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/winrm/deployments ────────────────────────────────────────────
+router.get('/winrm/deployments', requirePermission('endpoints:read'), (req, res) => {
+  try {
+    const { status, hostname } = req.query;
+    const deployments = winrmService.listWinRMDeployments(status, hostname);
+    res.json({ success: true, count: deployments.length, deployments });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── GET /api/winrm/deployments/:id ───────────────────────────────────────
+router.get('/winrm/deployments/:id', requirePermission('endpoints:read'), (req, res) => {
+  try {
+    const d = winrmService.getWinRMDeployment(req.params.id);
+    if (!d) return res.status(404).json({ error: 'WinRM deployment not found' });
+    res.json({ success: true, deployment: d });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
+module.exports.UPLOAD_DIR = UPLOAD_DIR;
+module.exports.UPLOAD_DIR = UPLOAD_DIR;

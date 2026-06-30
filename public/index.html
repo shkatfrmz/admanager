@@ -1182,8 +1182,9 @@
           <div class="page-title">Endpoints</div>
           <div class="page-sub">Managed client machines with agent installed</div>
         </div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="openUploadModal()">+ Upload Package</button>
+          <button class="btn btn-primary" onclick="openWinRMModal()">⚡ WinRM Push</button>
           <button class="btn btn-warn" onclick="cleanupDuplicatePackages()">Clean Duplicates</button>
           <button class="btn btn-ghost btn-sm" onclick="loadEndpoints()">↻ Refresh</button>
         </div>
@@ -1203,12 +1204,20 @@
         </div>
         <div class="dash-card" style="flex:1;padding:12px 16px;cursor:pointer" onclick="showDeployments()">
           <div style="font-size:20px;font-weight:700;color:var(--primary)" id="ep-pending-deployments">0</div>
-          <div style="font-size:11px;color:var(--muted)">Pending Deployments</div>
+          <div style="font-size:11px;color:var(--muted)">Pending Agent Deployments</div>
+        </div>
+        <div class="dash-card" style="flex:1;padding:12px 16px;cursor:pointer" onclick="showWinRMDeployments()">
+          <div style="font-size:20px;font-weight:700;color:var(--primary)" id="ep-pending-winrm">0</div>
+          <div style="font-size:11px;color:var(--muted)">Pending WinRM</div>
         </div>
       </div>
       <div id="endpoint-deploy-view" style="display:none">
         <button class="btn btn-ghost" onclick="closeDeployView()" style="margin-bottom:8px">← Back to Endpoints</button>
         <div id="deploy-content"></div>
+      </div>
+      <div id="endpoint-winrm-view" style="display:none">
+        <button class="btn btn-ghost" onclick="closeWinRMView()" style="margin-bottom:8px">← Back to Endpoints</button>
+        <div id="winrm-content"></div>
       </div>
       <div id="endpoint-main-view">
         <div class="section-card">
@@ -1276,6 +1285,61 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-deploy-pkg')">Cancel</button>
       <button class="btn btn-primary" onclick="submitDeploy()">Deploy</button>
+    </div>
+  </div>
+</div>
+
+<!-- WinRM Push Modal -->
+<div class="modal-overlay" id="modal-winrm-push">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <h3>WinRM Push Deployment</h3>
+      <button class="modal-close" onclick="closeModal('modal-winrm-push')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Package</label>
+        <select id="winrm-pkg-select" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px"></select>
+      </div>
+      <div class="form-group">
+        <label>Target Hostnames (one per line)</label>
+        <textarea id="winrm-hostnames" rows="4" placeholder="DC&#10;WINCLIENT10&#10;FILESERVER" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px;font-family:inherit"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Username <span style="color:var(--muted);font-weight:400">(leave blank to use server's identity)</span></label>
+          <input type="text" id="winrm-username" placeholder="sysadmin@labnet.local" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px" />
+        </div>
+        <div class="form-group">
+          <label>Password <span style="color:var(--muted);font-weight:400">(leave blank to use server's identity)</span></label>
+          <input type="password" id="winrm-password" placeholder="" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Authentication</label>
+          <select id="winrm-auth" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px">
+            <option value="Basic" selected>Basic (lab only — requires AllowUnencrypted)</option>
+            <option value="Negotiate">Negotiate (Kerberos/NTLM)</option>
+            <option value="Kerberos">Kerberos</option>
+            <option value="CredSSP">CredSSP</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;gap:8px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="winrm-https" />
+            <span>Use HTTPS (5986)</span>
+          </label>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--warning);background:var(--bg);padding:8px;border-radius:4px;border:1px solid var(--border)">
+        <strong>Security note:</strong> Credentials are sent with this request and used immediately. They are never stored on the server. For production, switch to gMSA + JEA + HTTPS.
+      </div>
+      <div id="winrm-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-winrm-push')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitWinRMDeploy()">Push Deploy</button>
     </div>
   </div>
 </div>
@@ -3809,6 +3873,10 @@ async function loadEndpoints() {
       const depResp = await api('/api/endpoints/deployments/list?status=pending');
       document.getElementById('ep-pending-deployments').textContent = depResp?.count || 0;
     } catch (_) {}
+    try {
+      const winrmResp = await api('/api/endpoints/winrm/deployments?status=pending');
+      document.getElementById('ep-pending-winrm').textContent = winrmResp?.count || 0;
+    } catch (_) {}
   } catch (e) {
     wrap.innerHTML = '<div class="empty-state"><p>Error loading endpoints.</p></div>';
     console.error('[endpoints] Load error:', e);
@@ -3840,6 +3908,7 @@ function renderEndpoints() {
               <td style="font-size:11px;color:var(--muted)">${since}</td>
               <td>
                 <button class="btn btn-ghost btn-sm" onclick="openDeployModal('${ep.id}')">Deploy</button>
+                <button class="btn btn-ghost btn-sm" onclick="openWinRMModal('${ep.hostname}')">WinRM</button>
                 <button class="btn btn-ghost btn-sm" onclick="showEndpointDetail('${ep.id}')">History</button>
               </td>
             </tr>`;
@@ -3903,6 +3972,122 @@ async function cleanupDuplicatePackages() {
       showToast(resp?.error || 'Cleanup failed', 'error');
     }
   } catch (e) { showToast('Cleanup error: ' + e.message, 'error'); }
+}
+
+// ── WINRM PUSH DEPLOYMENT ─────────────────────────────────────────────
+async function openWinRMModal(preSelectedHostname) {
+  closeModal('modal-winrm-push');
+  const pkgSel = document.getElementById('winrm-pkg-select');
+  const hostEl = document.getElementById('winrm-hostnames');
+  const statusEl = document.getElementById('winrm-status');
+  pkgSel.innerHTML = '<option>Loading packages...</option>';
+  hostEl.value = preSelectedHostname ? preSelectedHostname : '';
+  statusEl.textContent = '';
+  openModal('modal-winrm-push');
+  try {
+    const pkgResp = await api('/api/endpoints/deployments/files');
+    pkgSel.innerHTML = (pkgResp?.files||[]).map(f => `<option value="${f.id}">${f.name} (${(f.file_size/1024/1024).toFixed(1)} MB)</option>`).join('') || '<option value="">— No packages available —</option>';
+  } catch (e) { showToast('Error loading packages', 'error'); }
+}
+
+async function submitWinRMDeploy() {
+  const fileId = document.getElementById('winrm-pkg-select').value;
+  const hostnames = document.getElementById('winrm-hostnames').value.split('\n').map(h => h.trim()).filter(Boolean);
+  const username = document.getElementById('winrm-username').value.trim();
+  const password = document.getElementById('winrm-password').value;
+  const auth = document.getElementById('winrm-auth').value;
+  const useHttps = document.getElementById('winrm-https').checked;
+  const statusEl = document.getElementById('winrm-status');
+
+  if (!fileId) { showToast('Select a package', 'error'); return; }
+  if (!hostnames.length) { showToast('Enter at least one target hostname', 'error'); return; }
+
+  statusEl.textContent = 'Queueing WinRM deployment...';
+  try {
+    const resp = await api('/api/endpoints/winrm/deploy', {
+      method: 'POST',
+      body: JSON.stringify({ file_id: parseInt(fileId), hostnames, username, password, auth, use_https: useHttps })
+    });
+    if (resp.success) {
+      showToast(`WinRM deployment queued for ${resp.jobs.length} host(s)`, 'success');
+      closeModal('modal-winrm-push');
+      showWinRMDeployments();
+    } else {
+      statusEl.textContent = resp.error || 'Deploy failed';
+      showToast(resp.error || 'Deploy failed', 'error');
+    }
+  } catch (e) {
+    statusEl.textContent = 'Deploy error: ' + e.message;
+    showToast('Deploy error: ' + e.message, 'error');
+  }
+}
+
+// ── WINRM DEPLOYMENT LIST VIEW ──────────────────────────────────────────
+let allWinRMDeployments = [];
+let winrmRefreshTimer = null;
+
+async function showWinRMDeployments() {
+  document.getElementById('endpoint-main-view').style.display = 'none';
+  document.getElementById('endpoint-deploy-view').style.display = 'none';
+  document.getElementById('endpoint-winrm-view').style.display = '';
+  const content = document.getElementById('winrm-content');
+  content.innerHTML = '<div class="loading"><span class="spinner"></span>Loading WinRM deployments...</div>';
+  await fetchWinRMDeployments();
+  if (winrmRefreshTimer) clearInterval(winrmRefreshTimer);
+  winrmRefreshTimer = setInterval(fetchWinRMDeployments, 8000);
+}
+
+async function fetchWinRMDeployments() {
+  try {
+    const resp = await api('/api/endpoints/winrm/deployments');
+    allWinRMDeployments = resp?.deployments || [];
+    renderWinRMDeployments();
+    const active = allWinRMDeployments.filter(d => d.status === 'pending' || d.status === 'in_progress');
+    if (active.length === 0 && winrmRefreshTimer) { clearInterval(winrmRefreshTimer); winrmRefreshTimer = null; }
+  } catch (e) { /* ignore silent refresh errors */ }
+}
+
+function renderWinRMDeployments() {
+  const content = document.getElementById('winrm-content');
+  if (!allWinRMDeployments.length) { content.innerHTML = '<div class="empty-state"><p>No WinRM deployments yet.</p></div>'; return; }
+  content.innerHTML = `
+    <div class="section-card">
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Package</th><th>Hostname</th><th>Status</th><th>Started</th><th>Completed</th><th>Result</th></tr></thead>
+          <tbody>
+            ${allWinRMDeployments.map(d => {
+              const statusClass = d.status === 'success' ? 'badge-success' : (d.status === 'failed' ? 'badge-danger' : (d.status === 'in_progress' ? 'badge-warning' : ''));
+              let resultText = '—';
+              let resultTitle = '';
+              if (d.error_message) { resultText = 'Error: ' + d.error_message.slice(0, 30); resultTitle = d.error_message; }
+              else if (d.output_log) {
+                try {
+                  const log = JSON.parse(d.output_log);
+                  resultText = 'Exit ' + (log.exitCode ?? '?') + ': ' + (log.output || '').slice(0, 40);
+                  resultTitle = JSON.stringify(log, null, 2);
+                } catch (_) { resultText = d.output_log.slice(0, 40); resultTitle = d.output_log; }
+              }
+              return `<tr>
+                <td>${d.file_id || '—'}</td>
+                <td>${d.hostname}${d.ip_address ? ' <span style="color:var(--muted);font-size:11px">(' + d.ip_address + ')</span>' : ''}</td>
+                <td><span class="badge ${statusClass}">${d.status}</span></td>
+                <td style="font-size:11px;color:var(--muted)">${d.started_at ? new Date(d.started_at+'Z').toLocaleString() : '—'}</td>
+                <td style="font-size:11px;color:var(--muted)">${d.completed_at ? new Date(d.completed_at+'Z').toLocaleString() : '—'}</td>
+                <td style="font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis" title="${resultTitle.replace(/"/g, '&quot;')}">${resultText}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function closeWinRMView() {
+  if (winrmRefreshTimer) { clearInterval(winrmRefreshTimer); winrmRefreshTimer = null; }
+  document.getElementById('endpoint-main-view').style.display = '';
+  document.getElementById('endpoint-deploy-view').style.display = 'none';
+  document.getElementById('endpoint-winrm-view').style.display = 'none';
 }
 
 // ── DEPLOY ──────────────────────────────────────────────────────────────

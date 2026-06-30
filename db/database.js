@@ -178,6 +178,25 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_deployments_endpoint ON deployments(endpoint_id);
   CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
   CREATE INDEX IF NOT EXISTS idx_endpoints_status ON endpoints(status);
+
+  -- WinRM deployment tracking
+  CREATE TABLE IF NOT EXISTS winrm_deployments (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_id             INTEGER REFERENCES deployment_files(id),
+    hostname            TEXT NOT NULL,
+    ip_address          TEXT,
+    status              TEXT DEFAULT 'pending',
+    attempt_count       INTEGER DEFAULT 0,
+    error_message       TEXT,
+    output_log          TEXT,
+    started_at          TEXT,
+    completed_at        TEXT,
+    created_at          TEXT DEFAULT (datetime('now')),
+    created_by          TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_winrm_deployments_status ON winrm_deployments(status);
+  CREATE INDEX IF NOT EXISTS idx_winrm_deployments_hostname ON winrm_deployments(hostname);
 `);
 
 module.exports = db;

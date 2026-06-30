@@ -95,6 +95,7 @@ $cred = New-Object System.Management.Automation.PSCredential('${escapedUsername}
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [System.IO.Compression.ZipFile]::ExtractToDirectory($nupkg, $feed)
         $installScript = Join-Path $feed 'tools\\chocolateyinstall.ps1'
+        $env:ADMGR_TOOLS_DIR = Join-Path $feed 'tools'
         $installOutput = Invoke-Expression (Get-Content -Path $installScript -Raw) 2>&1 | Out-String
         $exitCode = $LASTEXITCODE
         @{ exitCode = $exitCode; output = $installOutput; inventory = '' }

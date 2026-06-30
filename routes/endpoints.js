@@ -370,7 +370,7 @@ router.post('/choco/packages/build', requirePermission('endpoints:manage'), asyn
     if (!file_id) return res.status(400).json({ error: 'file_id is required' });
     const result = await chocoPackageService.buildPackage({
       fileId: file_id,
-      packageId,
+      packageId: package_id,
       name,
       version,
       description,

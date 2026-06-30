@@ -145,7 +145,7 @@ function buildInstallerCommand(ext, remotePathVar, originalName, customArgs) {
     $result.log = (Get-Content -Path 'C:\\Windows\\Temp\\admgr-install.log' -Raw -ErrorAction SilentlyContinue)`;
   }
   if (ext === '.exe') {
-    const exeArgs = customArgs || '/S /VERYSILENT /NORESTART /SP- /SUPPRESSMSGBOXES /LOG="C:\\Windows\\Temp\\admgr-install.log"';
+    const exeArgs = customArgs || '/S';
     return `
     $result = @{ exitCode = 0; output = ''; log = '' }
     $proc = Start-Process -FilePath "${rp}" -ArgumentList '${exeArgs.replace(/'/g, "''")}' -Wait -PassThru -NoNewWindow

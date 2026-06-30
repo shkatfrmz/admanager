@@ -16,12 +16,15 @@ function addColumnIfMissing(table, column, definition) {
   }
 }
 
+// Migration: add install_args if missing and backfill defaults
+addColumnIfMissing('deployment_files', 'install_args', 'TEXT');
+const backfill = db.prepare(`UPDATE deployment_files SET install_args = ? WHERE install_args IS NULL AND file_type = ?`);
+backfill.run('/S', '.exe');
+backfill.run('/qn /norestart /l*v "C:\\Windows\\Temp\\admgr-install.log"', '.msi');
+
 // ════════════════════════════════════════════════════════════════════════════
 // SCHEMA
 // ════════════════════════════════════════════════════════════════════════════
-
-// Migration: add install_args if missing
-addColumnIfMissing('deployment_files', 'install_args', 'TEXT');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (

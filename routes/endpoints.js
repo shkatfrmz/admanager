@@ -216,14 +216,23 @@ router.post('/deployments/bulk', requirePermission('endpoints:deploy'), (req, re
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+function defaultInstallArgs(fileType) {
+  const ext = (fileType || '').toLowerCase();
+  if (ext === '.exe') return '/S';
+  if (ext === '.msi') return '/qn /norestart /l*v "C:\\Windows\\Temp\\admgr-install.log"';
+  return null;
+}
+
 // ── POST /api/deployments/upload ─────────────────────────────────────────
 router.post('/deployments/upload', requirePermission('endpoints:manage'), upload.single('file'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const { name, description, install_args } = req.body;
     const displayName = name || req.file.originalname;
+    const fileType = path.extname(req.file.originalname).toLowerCase();
+    const args = install_args || defaultInstallArgs(fileType);
     const r = db.prepare(`INSERT INTO deployment_files (name, description, original_name, stored_path, file_size, file_type, install_args) VALUES (?,?,?,?,?,?,?)`)
-      .run(displayName, description||null, req.file.originalname, req.file.filename, req.file.size, path.extname(req.file.originalname).toLowerCase(), install_args||null);
+      .run(displayName, description||null, req.file.originalname, req.file.filename, req.file.size, fileType, args||null);
     const cleanup = cleanupDuplicatePackages();
     res.json({ success: true, id: r.lastInsertRowid, message: 'File uploaded', cleanedUp: cleanup, file: { id: r.lastInsertRowid, name: displayName, size: req.file.size } });
   } catch (err) { res.status(500).json({ error: err.message }); }

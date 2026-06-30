@@ -51,9 +51,6 @@ async function runChocoJob(deploymentId, hostname, ip, packageName, packageVersi
   const resultFile = path.join(sessionDir, 'result.json');
 
   const escapedPackage = packageName.replace(/'/g, "''");
-  const escapedVersion = (packageVersion || '').replace(/'/g, "''");
-  const escapedSource = (source || '').replace(/'/g, "''");
-  const escapedArgs = (chocoArgs || '').replace(/'/g, "''");
   const escapedHostname = hostname.replace(/'/g, "''");
   const escapedUsername = (username || '').replace(/'/g, "''");
   const escapedPassword = (password || '').replace(/'/g, "''");
@@ -69,37 +66,28 @@ $cred = New-Object System.Management.Automation.PSCredential('${escapedUsername}
 
   let remoteScript = '';
   if (isInternal && nupkgPath) {
-    const remoteTemp = `C:\\Windows\\Temp\\admgr-choco-${runId}`;
-    const remoteNupkg = `${remoteTemp}\\${path.basename(nupkgPath)}`;
-    const escapedLocalPath = nupkgPath.replace(/'/g, "''");
-    const escapedRemoteNupkg = remoteNupkg.replace(/'/g, "''");
+    const pkg = chocoPackageService.getPackage(packageName);
+    const file = db.prepare('SELECT * FROM deployment_files WHERE id = ?').get(pkg.file_id);
+    const sourceFile = path.join(UPLOAD_DIR, file.stored_path);
+    const remoteTemp = `C:\\Windows\\Temp\\admgr-internal-${runId}`;
+    const remoteInstaller = `${remoteTemp}\\${file.original_name}`;
+    const escapedSourceFile = sourceFile.replace(/'/g, "''");
     const escapedRemoteTemp = remoteTemp.replace(/'/g, "''");
+    const escapedRemoteInstaller = remoteInstaller.replace(/'/g, "''");
+    const escapedInstallScript = (pkg.install_script || '').replace(/'/g, "''");
     remoteScript = `
     $result = Invoke-Command -Session $session -ScriptBlock {
       New-Item -Path '${escapedRemoteTemp}' -ItemType Directory -Force | Out-Null
     }
-    Copy-Item -Path '${escapedLocalPath}' -Destination '${escapedRemoteNupkg}' -ToSession $session -Force
+    Copy-Item -Path '${escapedSourceFile}' -Destination '${escapedRemoteInstaller}' -ToSession $session -Force
     $result = Invoke-Command -Session $session -ScriptBlock {
-      $nupkg = '${escapedRemoteNupkg}'
-      $feed = '${escapedRemoteTemp}'
-      $chocoPath = Get-Command choco.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-      if (-not $chocoPath) { $chocoPath = 'C:\\ProgramData\\chocolatey\\bin\\choco.exe' }
-      if (Test-Path $chocoPath) {
-        $choco = $chocoPath
-        $installOutput = & $choco install '${escapedPackage}' -y --no-progress --force --source $feed ${escapedArgs ? ' ' + escapedArgs : ''} 2>&1 | Out-String
-        $exitCode = $LASTEXITCODE
-        $inventory = & $choco list --local-only --limit-output 2>&1 | Out-String
-        @{ exitCode = $exitCode; output = $installOutput; inventory = $inventory }
-      } else {
-        # Chocolatey not installed on target — extract .nupkg and run embedded install script inline
-        Add-Type -AssemblyName System.IO.Compression.FileSystem
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($nupkg, $feed)
-        $installScript = Join-Path $feed 'tools\\chocolateyinstall.ps1'
-        $env:ADMGR_TOOLS_DIR = Join-Path $feed 'tools'
-        $installOutput = Invoke-Expression (Get-Content -Path $installScript -Raw) 2>&1 | Out-String
-        $exitCode = $LASTEXITCODE
-        @{ exitCode = $exitCode; output = $installOutput; inventory = '' }
-      }
+      $env:ADMGR_TOOLS_DIR = '${escapedRemoteTemp}'
+      $installScript = @'
+${pkg.install_script || ''}
+'@
+      $installOutput = Invoke-Expression $installScript 2>&1 | Out-String
+      $exitCode = $LASTEXITCODE
+      @{ exitCode = $exitCode; output = $installOutput; inventory = '' }
     }
     Remove-PSSession $session
     $result | ConvertTo-Json -Compress -Depth 3 | Out-File -FilePath '${resultFile.replace(/'/g, "''")}' -Encoding utf8`;
